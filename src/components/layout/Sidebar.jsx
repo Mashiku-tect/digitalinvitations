@@ -10,6 +10,7 @@ import {
   Users,
   Settings,
   HelpCircle,
+  LogOut,
   ChevronRight,
 } from "lucide-react";
 
@@ -29,7 +30,7 @@ const Sidebar = () => {
       children: [
         { title: "All Events", path: "/events" },
         { title: "Create Event", path: "/events/create" },
-        { title: "Archived Events", path: "/events/archived" },
+        
       ],
     },
     {
@@ -46,26 +47,18 @@ const Sidebar = () => {
       title: "QR Check-in",
       icon: <QrCode size={20} />,
       children: [
-        { title: "Live Scan", path: "/qr/live" },
+        // { title: "Live Scan", path: "/qr/live" },
         { title: "Check-in Logs", path: "/qr/logs" },
-        { title: "Real-time Attendance", path: "/qr/realtime" },
+        
       ],
     },
-    {
-      title: "Design Templates",
-      icon: <Brush size={20} />,
-      children: [
-        { title: "Card Templates", path: "/templates" },
-        { title: "Create Template", path: "/templates/create" },
-      ],
-    },
+   
     {
       title: "Reports",
       icon: <BarChart3 size={20} />,
       children: [
         { title: "Event Reports", path: "/reports/events" },
-        { title: "Invitation Reports", path: "/reports/invitations" },
-        { title: "Export Data", path: "/reports/export" },
+       
       ],
     },
     {
@@ -77,22 +70,12 @@ const Sidebar = () => {
         { title: "Roles & Permissions", path: "/users/roles" },
       ],
     },
+    
     {
-      title: "Settings",
-      icon: <Settings size={20} />,
-      children: [
-        { title: "System Settings", path: "/settings/system" },
-        { title: "Notifications", path: "/settings/notifications" },
-        { title: "Authentication", path: "/settings/auth" },
-      ],
-    },
-    {
-      title: "Help",
-      icon: <HelpCircle size={20} />,
-      children: [
-        { title: "User Guide", path: "/help/guide" },
-        { title: "Contact Support", path: "/help/support" },
-      ],
+      title: "Logout",
+      icon: <LogOut size={20} />,
+      
+      path: "/"
     },
   ];
 

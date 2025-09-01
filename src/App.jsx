@@ -10,6 +10,11 @@ import SendInvitations from './components/pages/SendInvitations';
 import InvitationStatus from './components/pages/InvitationStatus';
 import CardTemplates from './components/pages/CardTemplate';
 import CreateTemplate from './components/pages/CreateTemplate';
+import CheckInLogs from './components/pages/CheckInLogs';
+import EventReports from './components/pages/EventReports';
+import UserManagement from './components/pages/UserManagement';
+import AddUser from './components/pages/AddUser';
+import RolesAndPermissions from './components/pages/RolesAndPermissions';
 
 
 
@@ -35,6 +40,12 @@ function App() {
           <Route path="/invitations/status" element={<InvitationStatus />} />
           <Route path="/templates" element={<CardTemplates />} />
           <Route path="/templates/create" element={<CreateTemplate />} />
+          <Route path="/qr/logs" element={<CheckInLogs />} />
+          <Route path="/reports/events" element={<EventReports />} />
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="/users/add" element={<AddUser />} />
+          <Route path="users/roles" element={<RolesAndPermissions />} />
+        
 
 
           <Route path="/" element={<Login  />} />
