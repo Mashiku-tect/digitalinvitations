@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   LayoutDashboard,
   CalendarDays,
@@ -74,8 +75,7 @@ const Sidebar = () => {
     {
       title: "Logout",
       icon: <LogOut size={20} />,
-      
-      path: "/"
+      path: "/logout",
     },
   ];
 

@@ -5,15 +5,60 @@ import QRCode from "qrcode";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import Layout from "../layout/Layout";
+import axios from "axios";
 
-const fonts = ["Arial", "Times New Roman", "Courier New", "Cursive"];
+const fonts = [
+  // Basic system fonts
+  "Arial", 
+  "Times New Roman", 
+  "Courier New", 
+  "Cursive", 
+
+  // Modern sans-serif
+  "Montserrat", 
+  "Lato", 
+  "Roboto", 
+  "Open Sans", 
+  "Poppins", 
+  "Nunito", 
+  "Inter",
+
+  // Elegant serif (great for wedding cards, formal business)
+  "Playfair Display", 
+  "Merriweather", 
+  "Cinzel", 
+  "Cormorant Garamond", 
+  "Libre Baskerville",
+
+  // Script & decorative (good for wedding, invitations, posters)
+  "Great Vibes", 
+  "Dancing Script", 
+  "Pacifico", 
+  "Satisfy", 
+  "Allura", 
+  "Alex Brush",
+
+  // Display fonts (for posters and eye-catching designs)
+  "Bebas Neue", 
+  "Oswald", 
+  "Anton", 
+  "Raleway", 
+  "Abril Fatface", 
+  "Lobster", 
+  "Fredoka", 
+  "Baloo 2"
+];
 
 const CardDesigner = () => {
   const [image, setImage] = useState(null);
+  const [imageFileType, setImageFileType] = useState(null);
   const [imageSize, setImageSize] = useState({ width: 800, height: 600 });
   const [qrUrlTemplate, setQrUrlTemplate] = useState(
     "https://example.com/invite?name={NAME}"
   );
+  const [events, setEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState("");
+  const [guests, setGuests] = useState([]);
 
   const [placeholders, setPlaceholders] = useState([
     {
@@ -30,8 +75,8 @@ const CardDesigner = () => {
     {
       id: "qr",
       label: "QR",
-      x: 600,
-      y: 400,
+      x: 100,
+      y: 200,
       width: 100,
       height: 100,
       color: "#000000",
@@ -44,6 +89,30 @@ const CardDesigner = () => {
   const [previewDataUrl, setPreviewDataUrl] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  // Fetch events on component mount
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setLoadingEvents(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/getallevents', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setEvents(response.data.events || []);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   const updatePlaceholder = (id, updates) => {
     setPlaceholders((prev) =>
@@ -56,38 +125,65 @@ const CardDesigner = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Get file type
+    const fileType = file.type.split('/')[1];
+    setImageFileType(fileType);
+
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = () => {
+      // Set reasonable maximum dimensions for the canvas
+      const maxWidth = 1000;
+      const maxHeight = 800;
+      
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      
+      // Scale down if image is too large
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = width * ratio;
+        height = height * ratio;
+      }
+      
       setImage(img.src);
-      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+      setImageSize({ width, height });
     };
   };
 
-  // --- Excel Upload ---
-  const handleExcelUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const workbook = XLSX.read(evt.target.result, { type: "binary" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(sheet);
-      setGuestNames(data.map((row) => `${row.FirstName} ${row.LastName}`));
+  // --- Event Selection ---
+  const handleEventSelect = async (e) => {
+    const eventId = e.target.value;
+    setSelectedEvent(eventId);
+    
+    if (!eventId) {
+      setGuestNames([]);
+      setGuests([]);
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://localhost:5000/api/events/eventdetails/${eventId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Extract guest data from the response
+      const guestData = response.data.event.Guests || response.data.guests || [];
+      setGuests(guestData);
+      
+      const names = guestData.map(guest => 
+        `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest'
+      );
+      
+      setGuestNames(names);
       setPreviewIndex(0);
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  // --- Generate QR as Blob for edit mode ---
-  const awaitQRCodeBlob = async (text, color, size) => {
-    const dataUrl = await QRCode.toDataURL(text, {
-      color: { dark: color, light: "#ffffff" },
-      width: size,
-      margin: 0,
-    });
-    const res = await fetch(dataUrl);
-    return await res.blob();
+    } catch (error) {
+      console.error('Error fetching event details:', error);
+      alert('Failed to load event guests');
+    }
   };
 
   // --- Preview Generator ---
@@ -104,29 +200,81 @@ const CardDesigner = () => {
     await new Promise((resolve) => (bgImage.onload = resolve));
     ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-    // Scale factors in case placeholders were designed for 800x600
-    const scaleX = imageSize.width / 800;
-    const scaleY = imageSize.height / 600;
-
     for (const ph of placeholders) {
       if (ph.id === "name") {
         ctx.fillStyle = ph.color;
-        ctx.font = `${ph.fontSize * scaleY}px ${ph.fontFamily}`;
-        ctx.fillText(guestName, ph.x * scaleX, ph.y * scaleY + ph.fontSize * scaleY);
+        ctx.font = `${ph.fontSize}px ${ph.fontFamily}`;
+        ctx.fillText(guestName, ph.x, ph.y + ph.fontSize);
       }
       if (ph.id === "qr") {
         const qrDataUrl = await QRCode.toDataURL(
           qrUrlTemplate.replace("{NAME}", guestName),
-          { color: { dark: ph.color, light: "#ffffff" }, width: ph.width * scaleX, margin: 0 }
+          { color: { dark: ph.color, light: "#ffffff" }, width: ph.width, margin: 0 }
         );
         const qrImg = new Image();
         qrImg.src = qrDataUrl;
         await new Promise((resolve) => (qrImg.onload = resolve));
-        ctx.drawImage(qrImg, ph.x * scaleX, ph.y * scaleY, ph.width * scaleX, ph.height * scaleY);
+        ctx.drawImage(qrImg, ph.x, ph.y, ph.width, ph.height);
       }
     }
 
     return canvas.toDataURL("image/png");
+  };
+
+  // --- Generate Blob for Upload ---
+  const generateCardBlob = async (guestName) => {
+    const dataUrl = await generatePreview(guestName);
+    const response = await fetch(dataUrl);
+    return await response.blob();
+  };
+
+  // --- Publish Cards ---
+  const publishCards = async () => {
+    if (!selectedEvent || !guests.length || !image) {
+      alert("Please select an event, upload an image, and ensure guests are loaded");
+      return;
+    }
+
+    setPublishing(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      for (let i = 0; i < guests.length; i++) {
+        const guest = guests[i];
+        const guestName = guestNames[i];
+        
+        // Generate card blob
+        const blob = await generateCardBlob(guestName);
+        
+        // Create form data for upload
+        const formData = new FormData();
+        formData.append('card', blob, `${guest.firstName}_${guest.lastName}.${imageFileType || 'png'}`);
+        formData.append('eventId', selectedEvent);
+        formData.append('guestId', guest.id);
+        
+        // Upload card to server
+        const response = await axios.post(
+          'http://localhost:5000/api/events/uploadcard',
+          formData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+        
+        console.log(`Card uploaded for ${guestName}:`, response.data);
+      }
+      
+      alert('All cards published successfully!');
+    } catch (error) {
+      console.error('Error publishing cards:', error);
+      alert('Failed to publish some cards. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   // --- Refresh Preview manually ---
@@ -180,12 +328,44 @@ const CardDesigner = () => {
               onChange={handleImageUpload}
               className="w-full p-2 border border-gray-300 rounded-lg cursor-pointer hover:border-purple-500"
             />
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleExcelUpload}
-              className="w-full p-2 border border-gray-300 rounded-lg cursor-pointer hover:border-purple-500"
-            />
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select Event
+              </label>
+              <select
+                value={selectedEvent}
+                onChange={handleEventSelect}
+                className="w-full p-2 border border-gray-300 rounded-lg cursor-pointer hover:border-purple-500"
+                disabled={loadingEvents}
+              >
+                <option value="">-- Select an Event --</option>
+                {events.map(event => (
+                  <option key={event.id} value={event.id}>
+                    {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+              {loadingEvents && (
+                <p className="text-sm text-gray-500 mt-1">Loading events...</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                QR URL Template
+              </label>
+              <input
+                type="text"
+                value={qrUrlTemplate}
+                onChange={(e) => setQrUrlTemplate(e.target.value)}
+                placeholder="https://example.com/invite?name={NAME}"
+                className="w-full p-2 border border-gray-300 rounded-lg"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Use {"{NAME}"} as a placeholder for the guest's name
+              </p>
+            </div>
           </div>
 
           {/* Customization Panel */}
@@ -250,19 +430,23 @@ const CardDesigner = () => {
 
           {/* Navigation & Download */}
           {guestNames.length > 0 && (
-            <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3">
-              <button
-                onClick={prevGuest}
-                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
-              >
-                Previous
-              </button>
-              <button
-                onClick={nextGuest}
-                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
-              >
-                Next
-              </button>
+            <div className="bg-white p-4 rounded-xl shadow space-y-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={prevGuest}
+                  disabled={previewIndex === 0}
+                  className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={nextGuest}
+                  disabled={previewIndex === guestNames.length - 1}
+                  className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
 
               <button
                 onClick={async () => {
@@ -280,26 +464,46 @@ const CardDesigner = () => {
                 )}
               </button>
 
-              <button
-                onClick={downloadAllInvitations}
-                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-              >
-                 Download All Invitations
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={downloadAllInvitations}
+                  className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                >
+                  Download All
+                </button>
+                
+                <button
+                  onClick={publishCards}
+                  disabled={publishing}
+                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center"
+                >
+                  {publishing ? (
+                    <>
+                      <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                      Publishing...
+                    </>
+                  ) : (
+                    "Publish Cards"
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Designer Canvas */}
-        <div className="flex-shrink-0">
-          <div className="relative w-[90vw] md:w-[800px] h-[500px] md:h-[600px] bg-white border rounded-xl shadow-lg overflow-hidden">
+        <div className="flex-shrink-0 overflow-auto max-w-full">
+          <div
+            className="relative bg-white border rounded-xl shadow-lg overflow-hidden mx-auto"
+            style={{ width: imageSize.width, height: imageSize.height, maxWidth: '100%' }}
+          >
             {/* --- EDIT MODE --- */}
             {!showPreview && image && (
               <>
                 <img
                   src={image}
                   alt="Card"
-                  className="w-full h-full object-cover absolute top-0 left-0"
+                  className="absolute top-0 left-0 w-full h-full object-contain"
                 />
 
                 {placeholders.map((ph) => (
@@ -339,7 +543,7 @@ const CardDesigner = () => {
               <img
                 src={previewDataUrl}
                 alt="Preview"
-                className="absolute top-0 left-0 w-full h-full object-cover"
+                className="absolute top-0 left-0 w-full h-full object-contain"
               />
             )}
 
@@ -347,6 +551,18 @@ const CardDesigner = () => {
             {loadingPreview && (
               <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
                 <span className="animate-spin rounded-full h-12 w-12 border-b-4 border-purple-600"></span>
+              </div>
+            )}
+            
+            {/* --- No Image Placeholder --- */}
+            {!image && (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  <p>Upload an image to begin designing</p>
+                </div>
               </div>
             )}
           </div>
