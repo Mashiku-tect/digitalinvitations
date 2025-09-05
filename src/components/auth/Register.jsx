@@ -35,7 +35,7 @@ const Register = () => {
     setLoading(true); // Start loading spinner
 
     try {
-      const res = await axios.post('https://551fcdbb42dc.ngrok-free.app/api/register', {
+      const res = await axios.post('http://localhost:5000/api/register', {
         firstname,
         lastname,
         email,

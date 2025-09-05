@@ -26,7 +26,7 @@ const EventManager = () => {
         });
         // setEvents(res.data.events);
         const { totalEvents, activeEvents, completeEvents, events } = res.data;
-        console.log(res.data);
+        //console.log(res.data);
 
         setStats({
           totalEvents,

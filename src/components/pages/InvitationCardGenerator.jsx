@@ -54,7 +54,7 @@ const CardDesigner = () => {
   const [imageFileType, setImageFileType] = useState(null);
   const [imageSize, setImageSize] = useState({ width: 800, height: 600 });
   const [qrUrlTemplate, setQrUrlTemplate] = useState(
-    "https://example.com/invite?name={NAME}"
+    "https://example.com/invite?guestId={GUEST_ID}&eventId={EVENT_ID}&token={QR_TOKEN}"
   );
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState("");
@@ -73,6 +73,17 @@ const CardDesigner = () => {
       color: "red",
     },
     {
+      id: "type",
+      label: "Type",
+      x: 50,
+      y: 100,
+      width: 120,
+      height: 30,
+      fontSize: 18,
+      fontFamily: "Arial",
+      color: "blue",
+    },
+    {
       id: "qr",
       label: "QR",
       x: 100,
@@ -85,6 +96,7 @@ const CardDesigner = () => {
 
   const [selectedId, setSelectedId] = useState(null);
   const [guestNames, setGuestNames] = useState([]);
+  const [guestTypes, setGuestTypes] = useState([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewDataUrl, setPreviewDataUrl] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -158,6 +170,7 @@ const CardDesigner = () => {
     
     if (!eventId) {
       setGuestNames([]);
+      setGuestTypes([]);
       setGuests([]);
       return;
     }
@@ -178,7 +191,13 @@ const CardDesigner = () => {
         `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest'
       );
       
+      const types = guestData.map(guest => 
+  (guest.type || 'SINGLE').toUpperCase()
+);
+
+      
       setGuestNames(names);
+      setGuestTypes(types);
       setPreviewIndex(0);
     } catch (error) {
       console.error('Error fetching event details:', error);
@@ -186,9 +205,21 @@ const CardDesigner = () => {
     }
   };
 
+  // --- Generate QR Code URL with guest data ---
+  const generateQrUrl = (guest) => {
+    return qrUrlTemplate
+      .replace("{GUEST_ID}", guest.id)
+      .replace("{EVENT_ID}", guest.eventId)
+      .replace("{QR_TOKEN}", guest.qrcodetoken);
+  };
+
   // --- Preview Generator ---
-  const generatePreview = async (guestName) => {
+  const generatePreview = async (guestIndex) => {
     if (!image) return null;
+    
+    const guest = guests[guestIndex];
+    const guestName = guestNames[guestIndex];
+    const guestType = guestTypes[guestIndex];
 
     const canvas = document.createElement("canvas");
     canvas.width = imageSize.width;
@@ -206,9 +237,16 @@ const CardDesigner = () => {
         ctx.font = `${ph.fontSize}px ${ph.fontFamily}`;
         ctx.fillText(guestName, ph.x, ph.y + ph.fontSize);
       }
+      if (ph.id === "type") {
+        ctx.fillStyle = ph.color;
+        ctx.font = `${ph.fontSize}px ${ph.fontFamily}`;
+        ctx.fillText(guestType, ph.x, ph.y + ph.fontSize);
+      }
       if (ph.id === "qr") {
+        // Generate QR code using guest data
+        const qrData = generateQrUrl(guest);
         const qrDataUrl = await QRCode.toDataURL(
-          qrUrlTemplate.replace("{NAME}", guestName),
+          qrData,
           { color: { dark: ph.color, light: "#ffffff" }, width: ph.width, margin: 0 }
         );
         const qrImg = new Image();
@@ -222,8 +260,8 @@ const CardDesigner = () => {
   };
 
   // --- Generate Blob for Upload ---
-  const generateCardBlob = async (guestName) => {
-    const dataUrl = await generatePreview(guestName);
+  const generateCardBlob = async (guestIndex) => {
+    const dataUrl = await generatePreview(guestIndex);
     const response = await fetch(dataUrl);
     return await response.blob();
   };
@@ -242,10 +280,9 @@ const CardDesigner = () => {
       
       for (let i = 0; i < guests.length; i++) {
         const guest = guests[i];
-        const guestName = guestNames[i];
         
         // Generate card blob
-        const blob = await generateCardBlob(guestName);
+        const blob = await generateCardBlob(i);
         
         // Create form data for upload
         const formData = new FormData();
@@ -265,7 +302,7 @@ const CardDesigner = () => {
           }
         );
         
-        console.log(`Card uploaded for ${guestName}:`, response.data);
+        console.log(`Card uploaded for ${guestNames[i]}:`, response.data);
       }
       
       alert('All cards published successfully!');
@@ -279,35 +316,36 @@ const CardDesigner = () => {
 
   // --- Refresh Preview manually ---
   const refreshPreview = async () => {
-    if (guestNames.length > 0) {
+    if (guests.length > 0) {
       setLoadingPreview(true);
-      const dataUrl = await generatePreview(guestNames[previewIndex]);
+      const dataUrl = await generatePreview(previewIndex);
       setPreviewDataUrl(dataUrl);
       setLoadingPreview(false);
     }
   };
 
   useEffect(() => {
-    if (guestNames.length > 0) {
-      generatePreview(guestNames[previewIndex]).then(setPreviewDataUrl);
+    if (guests.length > 0) {
+      generatePreview(previewIndex).then(setPreviewDataUrl);
     }
-  }, [guestNames, placeholders, previewIndex]);
+  }, [guests, placeholders, previewIndex]);
 
   // --- Navigation ---
   const prevGuest = () => setPreviewIndex(Math.max(previewIndex - 1, 0));
   const nextGuest = () =>
-    setPreviewIndex(Math.min(previewIndex + 1, guestNames.length - 1));
+    setPreviewIndex(Math.min(previewIndex + 1, guests.length - 1));
 
   // --- Download All ---
   const downloadAllInvitations = async () => {
-    if (!guestNames.length || !image) return;
+    if (!guests.length || !image) return;
     const zip = new JSZip();
 
-    for (const guest of guestNames) {
-      const dataUrl = await generatePreview(guest);
+    for (let i = 0; i < guests.length; i++) {
+      const guestName = guestNames[i];
+      const dataUrl = await generatePreview(i);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      zip.file(`${guest}_invitation.png`, blob);
+      zip.file(`${guestName}_invitation.png`, blob);
     }
 
     const content = await zip.generateAsync({ type: "blob" });
@@ -359,11 +397,11 @@ const CardDesigner = () => {
                 type="text"
                 value={qrUrlTemplate}
                 onChange={(e) => setQrUrlTemplate(e.target.value)}
-                placeholder="https://example.com/invite?name={NAME}"
+                placeholder="https://example.com/invite?guestId={GUEST_ID}&eventId={EVENT_ID}&token={QR_TOKEN}"
                 className="w-full p-2 border border-gray-300 rounded-lg"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Use {"{NAME}"} as a placeholder for the guest's name
+                Use {"{GUEST_ID}"}, {"{EVENT_ID}"}, and {"{QR_TOKEN}"} as placeholders
               </p>
             </div>
           </div>
@@ -372,7 +410,7 @@ const CardDesigner = () => {
           {selectedId && (
             <div className="bg-white p-4 rounded-xl shadow space-y-4">
               <h2 className="text-lg font-semibold text-gray-700">Edit {selectedId}</h2>
-              {selectedId === "name" && (
+              {(selectedId === "name" || selectedId === "type") && (
                 <>
                   <div>
                     <label className="block text-sm">Font Size</label>
@@ -429,7 +467,7 @@ const CardDesigner = () => {
           )}
 
           {/* Navigation & Download */}
-          {guestNames.length > 0 && (
+          {guests.length > 0 && (
             <div className="bg-white p-4 rounded-xl shadow space-y-3">
               <div className="flex gap-3">
                 <button
@@ -441,7 +479,7 @@ const CardDesigner = () => {
                 </button>
                 <button
                   onClick={nextGuest}
-                  disabled={previewIndex === guestNames.length - 1}
+                  disabled={previewIndex === guests.length - 1}
                   className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
                 >
                   Next
@@ -524,7 +562,7 @@ const CardDesigner = () => {
                     onClick={() => setSelectedId(ph.id)}
                     className="flex items-center justify-center border-2 border-dashed rounded-lg cursor-move"
                     style={{
-                      borderColor: ph.id === "name" ? "#ef4444" : "#9ca3af",
+                      borderColor: ph.id === "name" ? "#ef4444" : ph.id === "type" ? "#3b82f6" : "#9ca3af",
                       backgroundColor: ph.id === "qr" ? "rgba(0,0,0,0.15)" : "transparent",
                       color: ph.color,
                       fontSize: ph.fontSize,

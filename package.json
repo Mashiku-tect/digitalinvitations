@@ -17,6 +17,7 @@
     "fabricjs-react": "^1.2.2",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.542.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",
