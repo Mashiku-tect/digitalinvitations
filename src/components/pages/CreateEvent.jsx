@@ -11,6 +11,7 @@ const CreateEvent = () => {
     name: '',
     date: '',
     time: '',
+    endTime: '',
     location: '',
     description: '',
     category: 'personal',
@@ -61,6 +62,17 @@ const CreateEvent = () => {
       return;
     }
 
+    // Validate that end time is after start time
+    if (formData.time && formData.endTime) {
+      const startTime = new Date(`2000-01-01T${formData.time}`);
+      const endTime = new Date(`2000-01-01T${formData.endTime}`);
+      
+      if (endTime <= startTime) {
+        toast.error('End time must be after start time');
+        return;
+      }
+    }
+
     setLoading(true); // Start loading spinner
 
     try {
@@ -70,6 +82,7 @@ const CreateEvent = () => {
       data.append("name", formData.name);
       data.append("date", formData.date);
       data.append("time", formData.time);
+      data.append("endTime", formData.endTime);
       data.append("location", formData.location);
       data.append("description", formData.description);
       data.append("category", formData.category);
@@ -179,16 +192,32 @@ const CreateEvent = () => {
                   />
                 </div>
 
-                {/* Time */}
+                {/* Start Time */}
                 <div>
                   <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
-                    Time *
+                    Start Time *
                   </label>
                   <input
                     type="time"
                     id="time"
                     name="time"
                     value={formData.time}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* End Time */}
+                <div>
+                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                    End Time *
+                  </label>
+                  <input
+                    type="time"
+                    id="endTime"
+                    name="endTime"
+                    value={formData.endTime}
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

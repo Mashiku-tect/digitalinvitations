@@ -286,7 +286,7 @@ const CardDesigner = () => {
         
         // Create form data for upload
         const formData = new FormData();
-        formData.append('card', blob, `${guest.firstName}_${guest.lastName}.${imageFileType || 'png'}`);
+        formData.append('card', blob, `${guest.firstName}_${guest.lastName}_${guest.id}.${imageFileType || 'png'}`);
         formData.append('eventId', selectedEvent);
         formData.append('guestId', guest.id);
         
