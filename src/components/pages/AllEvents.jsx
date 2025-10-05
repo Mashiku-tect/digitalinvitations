@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Layout from '../layout/Layout';
@@ -6,32 +6,31 @@ import Layout from '../layout/Layout';
 const EventManager = () => {
   const navigate = useNavigate();
   
-
   const [stats, setStats] = useState({
     totalEvents: 0,
     activeEvents: 0,
     completeEvents: 0,
+    cancelledEvents: 0,
     events: []
   });
 
   const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchEvents = async () => {
-     // console.log("Fetching events...");
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/api/getallevents", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        // setEvents(res.data.events);
-        const { totalEvents, activeEvents, completeEvents, events } = res.data;
-        //console.log(res.data);
+        const { totalEvents, activeEvents, completeEvents, events,cancelledEvents } = res.data;
 
         setStats({
           totalEvents,
           activeEvents,
           completeEvents,
+          cancelledEvents,
           events
         });
       } catch (err) {
@@ -41,37 +40,40 @@ const EventManager = () => {
     fetchEvents();
   }, []);
 
-
-   const deleteEvent = async (id) => {
+  const deleteEvent = async (id) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
         const token = localStorage.getItem("token");
         await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-       setStats(prev => ({
-  ...prev,
-  events: prev.events.filter(event => event.id !== id)
-}));
-
+        setStats(prev => ({
+          ...prev,
+          events: prev.events.filter(event => event.id !== id)
+        }));
       } catch (err) {
         console.error("Error deleting event:", err);
       }
     }
   };
 
-
-const filteredEvents = (stats.events || []).filter(event => {
-  const isActive = Boolean(event.active); // coerce to true/false
-  if (filter === 'all') return true;
-  if (filter === 'upcoming') return isActive;
-  if (filter === 'past') return !isActive;
-  return true;
-});
-
+  const filteredEvents = (stats.events || []).filter(event => {
+    // Filter by status
+    const isActive = Boolean(event.active);
+    let statusMatch = true;
+    if (filter === 'upcoming') statusMatch = isActive;
+    if (filter === 'past') statusMatch = !isActive;
+    if (filter === 'cancelled') statusMatch = !isActive;
+    
+    // Filter by search term
+    const nameMatch = event.eventName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return statusMatch && nameMatch;
+  });
 
   const handleViewEvent = (eventId) => navigate(`/viewevents/${eventId}`);
   const handleEditEvent = (eventId) => navigate(`/editevents/${eventId}/edit`);
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
@@ -97,6 +99,9 @@ const filteredEvents = (stats.events || []).filter(event => {
                 <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-full font-medium">
                   Past: {stats.completeEvents || 0}
                 </div>
+                 <div className="bg-red-100 text-red-700 px-4 py-2 rounded-full font-medium">
+                  Cancelled: {stats.cancelledEvents || 0}
+                </div>
               </div>
               
               <div className="flex space-x-3">
@@ -108,7 +113,16 @@ const filteredEvents = (stats.events || []).filter(event => {
                   <option value="all">All Events</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="past">Past</option>
+                
                 </select>
+                
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
                 
                 <Link
                   to="/events/create"
@@ -123,6 +137,21 @@ const filteredEvents = (stats.events || []).filter(event => {
             </div>
           </div>
 
+          {/* Search Results Info */}
+          {searchTerm && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800">
+                Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} matching "{searchTerm}"
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="ml-3 text-blue-600 hover:text-blue-800 underline text-sm"
+                >
+                  Clear search
+                </button>
+              </p>
+            </div>
+          )}
+
           {/* Events Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => (
@@ -130,8 +159,16 @@ const filteredEvents = (stats.events || []).filter(event => {
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <h2 className="text-xl font-bold text-gray-800">{event.eventName}</h2>
-                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${event.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-  {event.active ? 'Upcoming' : 'Past'}
+                   <span
+  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+    event.cancelled
+      ? 'bg-red-100 text-red-700'
+      : event.active
+      ? 'bg-green-100 text-green-800'
+      : 'bg-gray-100 text-gray-800'
+  }`}
+>
+  {event.cancelled ? 'Cancelled' : event.active ? 'Upcoming' : 'Past'}
 </span>
 
                   </div>
@@ -207,8 +244,21 @@ const filteredEvents = (stats.events || []).filter(event => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h3 className="text-xl font-medium text-gray-700 mb-2">No events found</h3>
-              <p className="text-gray-500">Try changing your filters or create a new event.</p>
+              <h3 className="text-xl font-medium text-gray-700 mb-2">
+                {searchTerm ? 'No events found matching your search' : 'No events found'}
+              </h3>
+              <p className="text-gray-500">
+                {searchTerm ? 'Try a different search term or ' : 'Try changing your filters or '}
+                create a new event.
+              </p>
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300"
+                >
+                  Clear Search
+                </button>
+              )}
             </div>
           )}
         </div>

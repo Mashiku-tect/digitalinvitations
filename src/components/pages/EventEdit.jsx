@@ -13,6 +13,7 @@ const EditEvent = () => {
     name: '',
     date: '',
     time: '',
+    endTime: '',
     location: '',
     description: '',
     category: 'personal',
@@ -25,7 +26,6 @@ const EditEvent = () => {
   const [existingFile, setExistingFile] = useState('');
 
   useEffect(() => {
-      //console.log('useEffect triggered');
     const fetchEvent = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -37,11 +37,11 @@ const EditEvent = () => {
         });
         
         const event = response.data.event;
-        //console .log('Fetched event data:', event);
         setFormData({
           name: event.eventName,
           date: event.eventDate.split('T')[0], // Format date for input
           time: event.eventTime,
+          endTime: event.eventEndTime || '',
           location: event.location,
           description: event.description,
           category: event.category,
@@ -94,6 +94,12 @@ const EditEvent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate that end time is after start time
+    if (formData.endTime && formData.time && formData.endTime <= formData.time) {
+      toast.error('End time must be after start time');
+      return;
+    }
+    
     if (!formData.excelFile && !existingFile) {
       toast.error('Please upload an Excel file with guest data');
       return;
@@ -108,6 +114,7 @@ const EditEvent = () => {
       data.append("name", formData.name);
       data.append("date", formData.date);
       data.append("time", formData.time);
+      data.append("endTime", formData.endTime);
       data.append("location", formData.location);
       data.append("description", formData.description);
       data.append("category", formData.category);
@@ -219,10 +226,10 @@ const EditEvent = () => {
                   />
                 </div>
 
-                {/* Time */}
+                {/* Start Time */}
                 <div>
                   <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
-                    Time *
+                    Start Time *
                   </label>
                   <input
                     type="time"
@@ -231,6 +238,21 @@ const EditEvent = () => {
                     value={formData.time}
                     onChange={handleChange}
                     required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* End Time */}
+                <div>
+                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    id="endTime"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -373,7 +395,7 @@ const EditEvent = () => {
                   ) : (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 极速快3 0 012 0v2H9V4z" />
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 极速快3 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 极速快3a1 1 0 012 0v2H9V4z" />
                       </svg>
                       Update Event
                     </>

@@ -23,6 +23,8 @@ import UserManagement from './components/pages/UserManagement';
 import AddUser from './components/pages/AddUser';
 import RolesAndPermissions from './components/pages/RolesAndPermissions';
 import Logout from './components/pages/Logout';
+import EditUsers from './components/pages/EditUsers';
+import ScanPermissions from './components/pages/ScanPermission';
 
 import './App.css';
 
@@ -82,12 +84,14 @@ function App() {
         <Route path="/templates/create" element={<ProtectedRoute><CreateTemplate /></ProtectedRoute>} />
 
         <Route path="/qr/logs" element={<ProtectedRoute><CheckInLogs /></ProtectedRoute>} />
-        <Route path="/reports/events" element={<ProtectedRoute><EventReports /></ProtectedRoute>} />
+        <Route path="/events/reports/:id" element={<ProtectedRoute><EventReports /></ProtectedRoute>} />
 
         <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
         <Route path="/users/add" element={<ProtectedRoute><AddUser /></ProtectedRoute>} />
         <Route path="/users/roles" element={<ProtectedRoute><RolesAndPermissions /></ProtectedRoute>} />
+        <Route path="/users/edit/:id" element={<ProtectedRoute><EditUsers /></ProtectedRoute>} />
 
+         <Route path="/events/:id/scan-permissions" element={<ProtectedRoute><ScanPermissions /></ProtectedRoute>} />
         <Route path="/logout" element={<ProtectedRoute><Logout /></ProtectedRoute>} />
       </Routes>
     </div>

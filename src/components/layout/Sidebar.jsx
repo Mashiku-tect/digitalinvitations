@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -15,9 +15,16 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const Sidebar = () => {
-  const [isExpanded, setIsExpanded] = useState(true);
+const Sidebar = ({ isExpanded, setIsExpanded }) => {
+  //const [isExpanded, setIsExpanded] = useState(true);
   const [hoveredItem, setHoveredItem] = useState(null);
+  
+
+  useEffect(() => {
+  if (window.innerWidth < 768) { // Tailwind md breakpoint
+    setIsExpanded(false);
+  }
+}, []);
 
   const menuItems = [
     {
@@ -39,9 +46,9 @@ const Sidebar = () => {
       icon: <Send size={20} />,
       children: [
         { title: "Generate Invitations", path: "/invitations/generate" },
-        { title: "All Invitations", path: "/invitations" },
+      
         { title: "Send Invitations", path: "/invitations/send" },
-        { title: "Invitation Status", path: "/invitations/status" },
+       
       ],
     },
     {
@@ -51,15 +58,6 @@ const Sidebar = () => {
         // { title: "Live Scan", path: "/qr/live" },
         { title: "Check-in Logs", path: "/qr/logs" },
         
-      ],
-    },
-   
-    {
-      title: "Reports",
-      icon: <BarChart3 size={20} />,
-      children: [
-        { title: "Event Reports", path: "/reports/events" },
-       
       ],
     },
     {
@@ -80,11 +78,14 @@ const Sidebar = () => {
   ];
 
   return (
-    <div
-      className={`h-screen bg-gray-900 text-white transition-all duration-300 ${
-        isExpanded ? "w-64" : "w-20"
-      } relative z-20`}
-    >
+   <div
+  className={`h-screen bg-gray-900 text-white transition-all duration-300 fixed md:relative top-0 left-0 z-20
+    ${isExpanded 
+      ? "w-64 translate-x-0" 
+      : "w-15 md:w-15 md:translate-x-0 -translate-x-full"
+    }`}
+>
+
       <div className="p-4 flex justify-between items-center">
         <span className={`font-bold text-lg ${!isExpanded && "hidden"}`}>
           Mashiku_Tech

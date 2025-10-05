@@ -10,6 +10,7 @@ const CreateEvent = () => {
   const [formData, setFormData] = useState({
     name: '',
     date: '',
+    endDate: '',
     time: '',
     endTime: '',
     location: '',
@@ -20,7 +21,7 @@ const CreateEvent = () => {
   });
 
   const [uploadStatus, setUploadStatus] = useState('');
-  const [loading, setLoading] = useState(false); // Added loading state
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,12 +29,19 @@ const CreateEvent = () => {
       ...prev,
       [name]: value
     }));
+
+    // Auto-set end date to start date when start date changes and end date is empty
+    if (name === 'date' && !formData.endDate) {
+      setFormData(prev => ({
+        ...prev,
+        endDate: value
+      }));
+    }
   };
 
   const handleExcelChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check if file is an Excel file
       const validExtensions = ['.xlsx', '.xls', '.csv'];
       const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
       
@@ -53,6 +61,70 @@ const CreateEvent = () => {
     }
   };
 
+  const validateEventTimes = () => {
+    // Check if both dates and times are provided
+    if (!formData.date || !formData.endDate || !formData.time || !formData.endTime) {
+      return { isValid: false, message: 'Please fill in all date and time fields' };
+    }
+
+    // Create date objects for comparison
+    const startDateTime = new Date(`${formData.date}T${formData.time}`);
+    const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
+
+    // Check if end date/time is after start date/time
+    if (endDateTime <= startDateTime) {
+      return { 
+        isValid: false, 
+        message: 'End date and time must be after start date and time' 
+      };
+    }
+
+    // Check if event duration is reasonable (not more than 30 days)
+    const durationInDays = (endDateTime - startDateTime) / (1000 * 60 * 60 * 24);
+    if (durationInDays > 30) {
+      return { 
+        isValid: false, 
+        message: 'Event duration cannot exceed 30 days' 
+      };
+    }
+
+    // Check if event is in the past
+    const now = new Date();
+    if (startDateTime < now) {
+      return { 
+        isValid: false, 
+        message: 'Event start time cannot be in the past' 
+      };
+    }
+
+    return { isValid: true, message: '' };
+  };
+
+  const calculateEventDuration = () => {
+    if (!formData.date || !formData.endDate || !formData.time || !formData.endTime) {
+      return '';
+    }
+
+    const startDateTime = new Date(`${formData.date}T${formData.time}`);
+    const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
+    
+    const durationMs = endDateTime - startDateTime;
+    const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+    const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (durationHours < 1) {
+      return `${durationMinutes} minutes`;
+    } else if (durationHours === 1 && durationMinutes === 0) {
+      return '1 hour';
+    } else if (durationHours === 1) {
+      return `1 hour ${durationMinutes} minutes`;
+    } else if (durationMinutes === 0) {
+      return `${durationHours} hours`;
+    } else {
+      return `${durationHours} hours ${durationMinutes} minutes`;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -62,25 +134,22 @@ const CreateEvent = () => {
       return;
     }
 
-    // Validate that end time is after start time
-    if (formData.time && formData.endTime) {
-      const startTime = new Date(`2000-01-01T${formData.time}`);
-      const endTime = new Date(`2000-01-01T${formData.endTime}`);
-      
-      if (endTime <= startTime) {
-        toast.error('End time must be after start time');
-        return;
-      }
+    // Validate event dates and times
+    const validation = validateEventTimes();
+    if (!validation.isValid) {
+      toast.error(validation.message);
+      return;
     }
 
-    setLoading(true); // Start loading spinner
+    setLoading(true);
 
     try {
-      const token = localStorage.getItem("token"); // Get JWT token
+      const token = localStorage.getItem("token");
 
       const data = new FormData();
       data.append("name", formData.name);
       data.append("date", formData.date);
+      //data.append("endDate", formData.endDate);
       data.append("time", formData.time);
       data.append("endTime", formData.endTime);
       data.append("location", formData.location);
@@ -101,7 +170,6 @@ const CreateEvent = () => {
 
       toast.success(res.data.message || 'Event created successfully!');
       
-      // Wait a moment before redirecting to show the success message
       setTimeout(() => {
         navigate("/events");
       }, 1500);
@@ -109,7 +177,7 @@ const CreateEvent = () => {
       console.error(err);
       toast.error(err.response?.data?.message || "Error creating event");
     } finally {
-      setLoading(false); // Stop loading spinner
+      setLoading(false);
     }
   };
 
@@ -120,6 +188,8 @@ const CreateEvent = () => {
     { value: 'entertainment', label: 'Entertainment' },
     { value: 'other', label: 'Other' }
   ];
+
+  const eventDuration = calculateEventDuration();
 
   return (
     <Layout>
@@ -175,10 +245,10 @@ const CreateEvent = () => {
                   />
                 </div>
 
-                {/* Date */}
+                {/* Start Date */}
                 <div>
                   <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Date *
+                    Start Date *
                   </label>
                   <input
                     type="date"
@@ -188,6 +258,23 @@ const CreateEvent = () => {
                     onChange={handleChange}
                     required
                     min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    name="endDate"
+                    value={formData.endDate}
+                    onChange={handleChange}
+                    required
+                    min={formData.date || new Date().toISOString().split('T')[0]}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -223,6 +310,23 @@ const CreateEvent = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+
+                {/* Event Duration Display */}
+                {eventDuration && (
+                  <div className="md:col-span-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-blue-800">Event Duration:</span>
+                        <span className="text-lg font-bold text-blue-900">{eventDuration}</span>
+                      </div>
+                      {formData.date !== formData.endDate && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          This event spans across {formData.date === formData.endDate ? 'one day' : 'multiple days'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Location */}
                 <div className="md:col-span-2">
@@ -363,6 +467,7 @@ const CreateEvent = () => {
           <div className="mt-6 text-center text-sm text-gray-600">
             <p>All fields marked with * are required</p>
             <p className="mt-1">Your Excel file should include guest names, emails, and any other relevant information</p>
+            <p className="mt-1">Events can span multiple days - use different start and end dates for multi-day events</p>
           </div>
         </div>
       </div>
