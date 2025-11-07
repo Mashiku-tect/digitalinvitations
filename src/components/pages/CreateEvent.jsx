@@ -16,6 +16,7 @@ const CreateEvent = () => {
     location: '',
     description: '',
     category: 'personal',
+    package: 'Basic', // New package field with default value
     excelFile: null,
     fileName: ''
   });
@@ -155,6 +156,7 @@ const CreateEvent = () => {
       data.append("location", formData.location);
       data.append("description", formData.description);
       data.append("category", formData.category);
+      data.append("package", formData.package); // Add package to form data
       data.append("excelFile", formData.excelFile);
 
       const res = await axios.post(
@@ -187,6 +189,13 @@ const CreateEvent = () => {
     { value: 'education', label: 'Education' },
     { value: 'entertainment', label: 'Entertainment' },
     { value: 'other', label: 'Other' }
+  ];
+
+  const packages = [
+    { value: 'Basic', label: 'Basic' },
+    { value: 'Standard', label: 'Standard' },
+    { value: 'Pro', label: 'Pro' },
+    { value: 'Elite', label: 'Elite' }
   ];
 
   const eventDuration = calculateEventDuration();
@@ -361,6 +370,27 @@ const CreateEvent = () => {
                     {categories.map(category => (
                       <option key={category.value} value={category.value}>
                         {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Package Type */}
+                <div>
+                  <label htmlFor="package" className="block text-sm font-medium text-gray-700 mb-1">
+                    Package Type *
+                  </label>
+                  <select
+                    id="package"
+                    name="package"
+                    value={formData.package}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {packages.map(pkg => (
+                      <option key={pkg.value} value={pkg.value}>
+                        {pkg.label}
                       </option>
                     ))}
                   </select>

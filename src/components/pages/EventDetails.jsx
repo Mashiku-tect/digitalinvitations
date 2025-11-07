@@ -32,8 +32,9 @@ const EventDetails = () => {
           }
         });
         setEvent(response.data.event);
+        console.log("event data",response.data.event)
         setGuests(response.data.event.Guests || response.data.guests || []);
-        console.log('Fetched guests:', response.data.event.Guests || response.data.guests || []);
+       // console.log('Fetched guests:', response.data.event.Guests || response.data.guests || []);
       } catch (error) {
         console.error('Error fetching event:', error);
       } finally {
@@ -125,6 +126,38 @@ const EventDetails = () => {
         console.error('Error removing scanner:', error);
         alert('Failed to remove scan permission');
       }
+    }
+  };
+
+  // Update guest status for call actions
+  const updateCallStatus = async (guestId, field, value) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response=await axios.put(
+        `http://localhost:5000/api/events/${id}/guests/${guestId}/status`,
+        { field, value },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Update local state
+      setGuests(prevGuests => 
+        prevGuests.map(guest => 
+          guest.id === guestId 
+            ? { ...guest, [field]: value }
+            : guest
+        )
+      );
+      const message= response.data.message || 'Call status updated successfully';
+      
+      alert(message);
+    } catch (error) {
+      //console.error('Error updating call status:', error);
+      const errormessage=error.response?.data?.message || 'Failed to update call status';
+      alert(errormessage);
     }
   };
 
@@ -272,13 +305,190 @@ const EventDetails = () => {
     }
   };
 
+  // Render status display for WhatsApp/SMS (read-only from backend)
+  const renderStatusDisplay = (status) => {
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        status === true  
+          ? 'bg-green-100 text-green-800' 
+          : 'bg-red-100 text-red-800'
+      }`}>
+        {status ? 'Yes': 'No'}
+      </span>
+    );
+  };
+
+  // Render action buttons for calls
+  const renderCallActionButtons = (guest, field) => {
+    const currentStatus = guest[field] || 'Not Called';
+    
+    return (
+      <div className="flex flex-col space-y-1">
+        <div className="flex space-x-1">
+          <button
+            onClick={() => updateCallStatus(guest.id, field, 'Reachable')}
+            className={`px-2 py-1 text-xs rounded ${
+              currentStatus === 'Reachable' 
+                ? 'bg-green-600 text-white' 
+                : 'bg-green-100 text-green-800 hover:bg-green-200'
+            }`}
+          >
+            ✓ Reachable
+          </button>
+          <button
+            onClick={() => updateCallStatus(guest.id, field, 'Not Reachable')}
+            className={`px-2 py-1 text-xs rounded ${
+              currentStatus === 'Not Reachable' 
+                ? 'bg-red-600 text-white' 
+                : 'bg-red-100 text-red-800 hover:bg-red-200'
+            }`}
+          >
+            ✗ Not Reachable
+          </button>
+        </div>
+        <span className="text-xs text-gray-500 text-center">
+          {currentStatus === 'Not Called' ? 'Not Called' : currentStatus}
+        </span>
+      </div>
+    );
+  };
+
+  // Render status columns based on package
+  const renderStatusColumns = () => {
+    const packageName = event?.packagename || 'Basic';
+    
+    switch (packageName) {
+      case 'Basic':
+        return (
+          <th className="text-left py-2 text-gray-700 font-medium">SMS Sent</th>
+        );
+      
+      case 'Standard':
+        return (
+          <>
+            <th className="text-left py-2 text-gray-700 font-medium">SMS Sent</th>
+            {/* <th className="text-left py-2 text-gray-700 font-medium">WhatsApp Sent</th> */}
+            <th className="text-left py-2 text-gray-700 font-medium">Call Status</th>
+          </>
+        );
+      
+      case 'Pro':
+        return (
+          <>
+            <th className="text-left py-2 text-gray-700 font-medium">SMS Sent</th>
+            <th className="text-left py-2 text-gray-700 font-medium">Remainder Sent</th>
+            {/* <th className="text-left py-2 text-gray-700 font-medium">WhatsApp Sent</th> */}
+            <th className="text-left py-2 text-gray-700 font-medium">Call Status</th>
+            
+          </>
+        );
+      
+      case 'Elite':
+        return (
+          <>
+            <th className="text-left py-2 text-gray-700 font-medium">SMS Sent</th>
+            {/* <th className="text-left py-2 text-gray-700 font-medium">WhatsApp Sent</th> */}
+            <th className="text-left py-2 text-gray-700 font-medium"> Remainder 1</th>
+            <th className="text-left py-2 text-gray-700 font-medium"> Remainder 2</th>
+            <th className="text-left py-2 text-gray-700 font-medium">Call Status</th>
+          </>
+        );
+      
+      default:
+        return (
+          <th className="text-left py-2 text-gray-700 font-medium">Status</th>
+        );
+    }
+  };
+
+  // Render status cells based on package
+  const renderStatusCells = (guest) => {
+    const packageName = event?.packagename || 'Basic';
+    
+    switch (packageName) {
+      case 'Basic':
+        return (
+          <td className="py-3">
+            {renderStatusDisplay(guest.smsSent)}
+          </td>
+        );
+      
+      case 'Standard':
+        return (
+          <>
+            <td className="py-3">
+              {renderStatusDisplay(guest.smsSent)}
+            </td>
+            {/* <td className="py-3">
+              {renderStatusDisplay(guest.whatsappSent)}
+            </td> */}
+            <td className="py-3">
+              {renderCallActionButtons(guest, 'callStatus')}
+            </td>
+          </>
+        );
+      
+      case 'Pro':
+        return (
+          <>
+            <td className="py-3">
+              {renderStatusDisplay(guest.smsSent)}
+            </td>
+            {/* <td className="py-3">
+              {renderStatusDisplay(guest.whatsappSent)}
+            </td> */}
+            <td className="py-3">
+              {renderStatusDisplay(guest.Remainder1Sent)}
+            </td>
+            <td className="py-3">
+              {renderCallActionButtons(guest, 'callStatus')}
+            </td>
+            
+          </>
+        );
+      
+      case 'Elite':
+        return (
+          <>
+            <td className="py-3">
+              {renderStatusDisplay(guest.smsSent)}
+            </td>
+            {/* <td className="py-3">
+              {renderStatusDisplay(guest.whatsappSent)}
+            </td> */}
+            <td className="py-3">
+              {renderStatusDisplay(guest.Remainder1Sent)}
+            </td>
+            <td className="py-3">
+              {renderStatusDisplay(guest.Remainder2Sent)}
+            </td>
+            <td className="py-3">
+              {renderCallActionButtons(guest, 'callStatus')}
+            </td>
+          </>
+        );
+      
+      default:
+        return (
+          <td className="py-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${guest.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+              {guest.status || 'Pending'}
+            </span>
+          </td>
+        );
+    }
+  };
+
   if (loading) {
     return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </Layout>
+     <Layout>
+          <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading Events Data....</p>
+            </div>
+          </div>
+        </Layout>
     );
   }
 
@@ -302,7 +512,7 @@ const EventDetails = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 md:px-8">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6 flex justify-between items-center">
             <Link 
@@ -316,27 +526,102 @@ const EventDetails = () => {
             </Link>
             
             <div className="flex space-x-3">
+              {/* Package Badge */}
+              <span className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                event.packagename === 'Basic' ? 'bg-gray-100 text-gray-800' :
+                event.packagename=== 'Standard' ? 'bg-blue-100 text-blue-800' :
+                event.packagename === 'Pro' ? 'bg-purple-100 text-purple-800' :
+                event.packagename === 'Elite' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-orange-100 text-orange-800'
+              }`}>
+                {event.packagename} Package
+              </span>
+
               {/* Manage Scanners Button */}
-              <Link
-                to={`/events/${id}/scan-permissions`}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                </svg>
-                Manage Scanners
-              </Link>
+             {event.active ? (
+  <Link
+    to={`/events/${id}/scan-permissions`}
+    className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mr-2"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+        clipRule="evenodd"
+      />
+    </svg>
+    Manage Scanners
+  </Link>
+) : (
+  <button
+    disabled
+    className="bg-gray-400 text-white font-medium py-2 px-4 rounded-lg flex items-center cursor-not-allowed opacity-70"
+    title="You can't manage scanners for a past event"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mr-2"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+        clipRule="evenodd"
+      />
+    </svg>
+    Manage Scanners
+  </button>
+)}
+
 
               {/* View Report Button */}
-              <Link
-                to={`/events/reports/${id}`}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                View Report
-              </Link>
+             {!event.cancelled ? (
+  <Link
+    to={`/events/reports/${id}`}
+    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mr-2"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"
+        clipRule="evenodd"
+      />
+    </svg>
+    View Report
+  </Link>
+) : (
+  <button
+    disabled
+    className="bg-gray-400 text-white font-medium py-2 px-4 rounded-lg flex items-center cursor-not-allowed opacity-70"
+    title="You can't view reports for a cancelled event"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mr-2"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"
+        clipRule="evenodd"
+      />
+    </svg>
+    View Report
+  </button>
+)}
+
 
               {event.active && !event.cancelled && (
                 <>
@@ -389,26 +674,47 @@ const EventDetails = () => {
                   </button>
                 </>
               )}
+               
+
+               {/* prevent redirecting if event is not active or is cancelled */}
+               
+    
+              {event.active ? (
+  <Link
+    to={`/editevents/${id}/edit`}
+    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.380-8.379-2.83-2.828z" />
+    </svg>
+    Edit Event
+  </Link>
+) : (
+  <button
+    disabled
+    className="bg-gray-400 text-white font-medium py-2 px-4 rounded-lg flex items-center cursor-not-allowed opacity-70"
+    title="This event is no longer active"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.380-8.379-2.83-2.828z" />
+    </svg>
+    Edit Event
+  </button>
+)}
+
               
-              <Link
-                to={`/editevents/${id}/edit`}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.380-8.379-2.83-2.828z" />
-                </svg>
-                Edit Event
-              </Link>
-              
-              <button
-                onClick={deleteEvent}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Delete
-              </button>
+            
+  <button
+    onClick={deleteEvent}
+    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+    </svg>
+    Delete
+  </button>
+
+
             </div>
           </div>
 
@@ -510,7 +816,7 @@ const EventDetails = () => {
                             <th className="text-left py-2 text-gray-700 font-medium">Last Name</th>
                             <th className="text-left py-2 text-gray-700 font-medium">Phone Number</th>
                             <th className="text-left py-2 text-gray-700 font-medium">Type</th>
-                            <th className="text-left py-2 text-gray-700 font-medium">Status</th>
+                            {renderStatusColumns()}
                           </tr>
                         </thead>
                         <tbody>
@@ -521,11 +827,7 @@ const EventDetails = () => {
                               <td className="py-3 text-gray-700">{guest.lastName || 'N/A'}</td>
                               <td className="py-3 text-gray-700">{guest.phone || 'N/A'}</td>
                               <td className="py-3 text-gray-700 capitalize">{guest.type || 'N/A'}</td>
-                              <td className="py-3">
-                                <span className={`px-2 py-1 rounded-full text-xs ${guest.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                  {guest.status || 'Pending'}
-                                </span>
-                              </td>
+                              {renderStatusCells(guest)}
                             </tr>
                           ))}
                         </tbody>

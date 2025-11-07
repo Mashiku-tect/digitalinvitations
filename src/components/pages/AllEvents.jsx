@@ -16,15 +16,18 @@ const EventManager = () => {
 
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading,setLoading]=useState(false);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/api/getallevents", {
           headers: { Authorization: `Bearer ${token}` }
         });
         const { totalEvents, activeEvents, completeEvents, events,cancelledEvents } = res.data;
+        console.log("event Details",events)
 
         setStats({
           totalEvents,
@@ -35,6 +38,8 @@ const EventManager = () => {
         });
       } catch (err) {
         console.error("Error fetching events:", err);
+      }finally{
+        setLoading(false);
       }
     };
     fetchEvents();
@@ -72,7 +77,31 @@ const EventManager = () => {
   });
 
   const handleViewEvent = (eventId) => navigate(`/viewevents/${eventId}`);
-  const handleEditEvent = (eventId) => navigate(`/editevents/${eventId}/edit`);
+  const handleEditEvent = (eventId,cancelledstatus,completedstatus) => {
+    if(cancelledstatus){
+      alert("Cancelled events can not be edited");
+      return;
+    }
+    else if(completedstatus){
+       alert("Completed events can not be edited");
+      return;
+    }
+    navigate(`/editevents/${eventId}/edit`);
+
+  }
+
+   if (loading) {
+       return (
+        <Layout>
+          <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading Events....</p>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
 
   return (
     <Layout>
@@ -113,6 +142,7 @@ const EventManager = () => {
                   <option value="all">All Events</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="past">Past</option>
+                  {/* <option value="canceled">Canceled</option> */}
                 
                 </select>
                 
@@ -216,7 +246,7 @@ const EventManager = () => {
                     <div className="flex space-x-4">
                       <button 
                         className="text-yellow-600 hover:text-yellow-800"
-                        onClick={() => handleEditEvent(event.id)}
+                        onClick={() => handleEditEvent(event.id,event.cancelled,event.completed)}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />

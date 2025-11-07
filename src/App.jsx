@@ -88,7 +88,7 @@ function App() {
 
         <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
         <Route path="/users/add" element={<ProtectedRoute><AddUser /></ProtectedRoute>} />
-        <Route path="/users/roles" element={<ProtectedRoute><RolesAndPermissions /></ProtectedRoute>} />
+        <Route path="/users/permissions/:userId" element={<ProtectedRoute><RolesAndPermissions /></ProtectedRoute>} />
         <Route path="/users/edit/:id" element={<ProtectedRoute><EditUsers /></ProtectedRoute>} />
 
          <Route path="/events/:id/scan-permissions" element={<ProtectedRoute><ScanPermissions /></ProtectedRoute>} />

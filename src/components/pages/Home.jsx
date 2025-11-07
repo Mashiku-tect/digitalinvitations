@@ -80,12 +80,16 @@ const Dashboard = () => {
     });
   };
 
+  
+
   const getStatusFromFlags = (activity) => {
   if (activity.cancelled) return 'Cancelled';
   if (activity.completed) return 'Completed';
   if (activity.active) return 'Upcoming';
   return 'Inactive';
 };
+
+
 
   // Get status badge style
   const getStatusBadge = (status) => {
@@ -107,7 +111,7 @@ const Dashboard = () => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'TZS'
     }).format(amount);
   };
 

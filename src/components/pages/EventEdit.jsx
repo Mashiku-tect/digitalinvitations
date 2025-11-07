@@ -376,7 +376,7 @@ const EditEvent = () => {
               <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => navigate(`/events/${id}`)}
+                  onClick={() => navigate(`/events`)}
                   className="w-full md:w-auto px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition duration-300"
                 >
                   Cancel

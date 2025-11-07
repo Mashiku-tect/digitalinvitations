@@ -66,7 +66,7 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
       children: [
         { title: "All Users", path: "/users" },
         { title: "Add User", path: "/users/add" },
-        { title: "Roles & Permissions", path: "/users/roles" },
+        // { title: "Roles & Permissions", path: "/users/roles" },
       ],
     },
     

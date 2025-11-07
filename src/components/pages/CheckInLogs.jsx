@@ -26,7 +26,7 @@ const CheckInLogs = () => {
     },
   }); 
    const { totalEvents, activeEvents, completeEvents, events } = res.data;
-        console.log(res.data);
+       // console.log(res.data);
 
         setStats({
           totalEvents,

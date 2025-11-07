@@ -104,6 +104,7 @@ const UserEdit = () => {
     );
 
     alert(response.data.message);
+    //console.log("user Object",response.data.user.firstName)
     //alert(response.data.message);
     navigate('/users');
   } catch (error) {
@@ -122,11 +123,16 @@ const UserEdit = () => {
     navigate('/users');
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+   if (loading) {
+     return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading user data...</p>
+          </div>
+        </div>
+      </Layout>
     );
   }
 
@@ -252,7 +258,7 @@ const UserEdit = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="Active">active</option>
+                <option value="active">Active</option>
                 <option value="Pending">Pending</option>
                 <option value="Suspended">Suspended</option>
               </select>

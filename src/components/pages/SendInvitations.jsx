@@ -50,7 +50,7 @@ const SendInvitations = () => {
       
       // Call the backend API to send invitations
       const response = await axios.post(
-        'http://localhost:5000/api/invitations/send',
+        'http://localhost:5000/api/invitations/send/SMS',
         {
           eventId: selectedEvent,
           message: message
