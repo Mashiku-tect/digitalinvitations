@@ -117,6 +117,12 @@ const CardDesigner = () => {
         });
         setEvents(response.data.events || []);
       } catch (error) {
+         if (error.response && error.response.status === 403) {
+        // Handle unauthorized access, maybe redirect to login
+        alert('You Need Event Viwer Permission to load events');
+       // console.log('Unauthorized access to event details');
+        return;
+      }
         console.error('Error fetching events:', error);
       } finally {
         setLoadingEvents(false);
@@ -200,6 +206,7 @@ const CardDesigner = () => {
       setGuestTypes(types);
       setPreviewIndex(0);
     } catch (error) {
+     
       console.error('Error fetching event details:', error);
       alert('Failed to load event guests');
     }
@@ -389,21 +396,7 @@ const CardDesigner = () => {
               )}
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                QR URL Template
-              </label>
-              <input
-                type="text"
-                value={qrUrlTemplate}
-                onChange={(e) => setQrUrlTemplate(e.target.value)}
-                placeholder="https://example.com/invite?guestId={GUEST_ID}&eventId={EVENT_ID}&token={QR_TOKEN}"
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Use {"{GUEST_ID}"}, {"{EVENT_ID}"}, and {"{QR_TOKEN}"} as placeholders
-              </p>
-            </div>
+           
           </div>
 
           {/* Customization Panel */}

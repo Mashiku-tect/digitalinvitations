@@ -7,7 +7,6 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const EditEvent = () => {
   const { id } = useParams();
-  
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -23,13 +22,12 @@ const EditEvent = () => {
 
   const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false);
-  const [existingFile, setExistingFile] = useState('');
+  const [hasAccess, setHasAccess] = useState(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         const token = localStorage.getItem('token');
-     
         const response = await axios.get(`http://localhost:5000/api/events/eventdetails/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
@@ -37,9 +35,10 @@ const EditEvent = () => {
         });
         
         const event = response.data.event;
+        console.log("event dataa", response.data.event);
         setFormData({
           name: event.eventName,
-          date: event.eventDate.split('T')[0], // Format date for input
+          date: event.eventDate.split('T')[0],
           time: event.eventTime,
           endTime: event.eventEndTime || '',
           location: event.location,
@@ -49,17 +48,24 @@ const EditEvent = () => {
           fileName: ''
         });
         
-        if (response.data.fileName) {
-          setExistingFile(response.data.fileName);
-        }
+        setHasAccess(true);
       } catch (error) {
+        if (error.response && error.response.status === 403) {
+          setHasAccess(false);
+        }
         console.error('Error fetching event:', error);
         toast.error('Failed to load event data');
       }
     };
 
     fetchEvent();
-  }, [id]);
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (hasAccess === false) {
+      navigate("/403", { replace: true });
+    }
+  }, [hasAccess, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,15 +100,24 @@ const EditEvent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate that end time is after start time
     if (formData.endTime && formData.time && formData.endTime <= formData.time) {
       toast.error('End time must be after start time');
       return;
     }
-    
-    if (!formData.excelFile && !existingFile) {
-      toast.error('Please upload an Excel file with guest data');
-      return;
+
+    //check if the user has uploaded a new excel file
+    if(formData.excelFile){
+      const validExtensions = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = formData.excelFile.name.substring(formData.excelFile.name.lastIndexOf('.')).toLowerCase();
+      if (!validExtensions.includes(fileExtension)) {
+        toast.error('Please upload a valid Excel file (.xlsx, .xls, or .csv)');
+        return;
+      }
+    }
+    else{
+      //force the user to upload a file
+      toast.error('Please upload an Excel file to update the guest list');
+      return; 
     }
 
     setLoading(true);
@@ -119,6 +134,7 @@ const EditEvent = () => {
       data.append("description", formData.description);
       data.append("category", formData.category);
       
+      // Only append the file if a new one was selected
       if (formData.excelFile) {
         data.append("excelFile", formData.excelFile);
       }
@@ -155,9 +171,26 @@ const EditEvent = () => {
     { value: 'other', label: 'Other' }
   ];
 
+  if (loading || hasAccess === null) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-600 text-sm">Loading Event data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 md:px-8 relative">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 md:px-6 relative">
         <ToastContainer
           position="top-right"
           autoClose={3000}
@@ -171,29 +204,28 @@ const EditEvent = () => {
           theme="light"
         />
         
-        {/* Spinner Overlay */}
         {loading && (
           <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
             <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-700">Updating your event...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-1"></div>
+              <p className="text-gray-700 text-sm">Updating your event...</p>
             </div>
           </div>
         )}
         
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Edit Event</h1>
-            <p className="text-gray-600">Update your event details below</p>
+          <div className="mb-4 text-center">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">Edit Event</h1>
+            <p className="text-gray-600 text-sm">Update your event details below</p>
           </div>
 
           {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <form onSubmit={handleSubmit} className="p-6 md:p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                {/* Event Name */}
-                <div className="md:col-span-2">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <form onSubmit={handleSubmit} className="p-4 md:p-6">
+              <div className="space-y-4">
+                {/* Event Name - Full Width */}
+                <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                     Event Name *
                   </label>
@@ -204,108 +236,109 @@ const EditEvent = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="Enter event name"
                   />
                 </div>
 
-                {/* Date */}
+                {/* Date, Time, End Time - Three columns */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      id="date"
+                      name="date"
+                      value={formData.date}
+                      onChange={handleChange}
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Time *
+                    </label>
+                    <input
+                      type="time"
+                      id="time"
+                      name="time"
+                      value={formData.time}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                      End Time
+                    </label>
+                    <input
+                      type="time"
+                      id="endTime"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Location and Category - Two columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                      Location *
+                    </label>
+                    <input
+                      type="text"
+                      id="location"
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="Enter event location"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                      Category *
+                    </label>
+                    <select
+                      id="category"
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    >
+                      {categories.map(category => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Excel File Upload - Simplified */}
                 <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Date *
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Start Time */}
-                <div>
-                  <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Time *
-                  </label>
-                  <input
-                    type="time"
-                    id="time"
-                    name="time"
-                    value={formData.time}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* End Time */}
-                <div>
-                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
-                    End Time
-                  </label>
-                  <input
-                    type="time"
-                    id="endTime"
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Location */}
-                <div className="md:col-span-2">
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    id="location"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter event location"
-                  />
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                    Category *
-                  </label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {categories.map(category => (
-                      <option key={category.value} value={category.value}>
-                        {category.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Excel File Upload */}
-                <div className="md:col-span-2">
                   <label htmlFor="excelFile" className="block text-sm font-medium text-gray-700 mb-1">
-                    Guest List (Excel File) {!existingFile && '*'}
+                    Update Guest List (Optional)
                   </label>
-                  <div className="flex flex-col items-start space-y-3">
-                    <label htmlFor="excelFile" className="cursor-pointer bg-blue-100 text-blue-700 px-4 py-3 rounded-lg hover:bg-blue-200 transition duration-300 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="space-y-2">
+                    <label htmlFor="excelFile" className="cursor-pointer bg-blue-100 text-blue-700 px-3 py-2 rounded hover:bg-blue-200 transition duration-300 flex items-center justify-center text-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      {existingFile ? 'Update Excel File' : 'Upload Excel File'}
+                      Upload New Excel File
                     </label>
                     <input
                       type="file"
@@ -316,46 +349,28 @@ const EditEvent = () => {
                       className="hidden"
                     />
                     
-                    {existingFile && !formData.fileName && (
-                      <div className="p-3 rounded-lg w-full bg-blue-50 text-blue-700 border border-blue-200">
-                        <div className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <span className="font-medium">Current file: {existingFile}</span>
-                        </div>
-                        <p className="text-sm mt-1">
-                          Upload a new file only if you want to replace the existing guest list.
-                        </p>
-                      </div>
-                    )}
-                    
                     {formData.fileName && (
-                      <div className={`p-3 rounded-lg w-full ${uploadStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-50 text-gray-700'}`}>
+                      <div className={`p-2 rounded text-xs ${uploadStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
                         <div className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           <span className="font-medium">{formData.fileName}</span>
                         </div>
-                        <p className="text-sm mt-1">
+                        <p className="mt-1">
                           {uploadStatus === 'success' 
                             ? 'File successfully uploaded. This will replace your existing guest list.'
-                            : 'Please upload an Excel file with your guest list.'}
+                            : 'New file selected for upload.'}
                         </p>
                       </div>
                     )}
                     
-                    {!formData.fileName && !existingFile && (
-                      <p className="text-sm text-gray-500">
-                        Upload an Excel file (.xlsx, .xls) or CSV containing your guest list
-                      </p>
-                    )}
+                    
                   </div>
                 </div>
 
                 {/* Description */}
-                <div className="md:col-span-2">
+                <div>
                   <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                     Description *
                   </label>
@@ -365,19 +380,19 @@ const EditEvent = () => {
                     value={formData.description}
                     onChange={handleChange}
                     required
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="Describe your event..."
                   ></textarea>
                 </div>
               </div>
 
               {/* Form Actions */}
-              <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3 pt-4 border-t border-gray-200 mt-4">
                 <button
                   type="button"
                   onClick={() => navigate(`/events`)}
-                  className="w-full md:w-auto px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition duration-300"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition duration-300 text-sm"
                 >
                   Cancel
                 </button>
@@ -385,17 +400,17 @@ const EditEvent = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full md:w-auto px-6 py-3 ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg transition duration-300 flex items-center justify-center`}
+                  className={`w-full sm:w-auto px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded transition duration-300 flex items-center justify-center text-sm`}
                 >
                   {loading ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
                       Updating...
                     </>
                   ) : (
                     <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 极速快3 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 极速快3a1 1 0 012 0v2H9V4z" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
                       </svg>
                       Update Event
                     </>
@@ -406,9 +421,9 @@ const EditEvent = () => {
           </div>
 
           {/* Help Text */}
-          <div className="mt-6 text-center text-sm text-gray-600">
+          <div className="mt-4 text-center text-xs text-gray-600">
             <p>Fields marked with * are required</p>
-            <p className="mt-1">Your Excel file should include guest names, emails, and any other relevant information</p>
+            <p className="mt-1">Upload a new Excel file only if you want to update your guest list</p>
           </div>
         </div>
       </div>

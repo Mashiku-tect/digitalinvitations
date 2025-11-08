@@ -1,5 +1,7 @@
 import React, { useState,useEffect } from "react";
 import { Link } from "react-router-dom";
+import { usePermissions } from '../../context/PermissionContext';
+import { hasPermission } from '../../utils/Permission';
 
 import {
   LayoutDashboard,
@@ -18,6 +20,17 @@ import {
 const Sidebar = ({ isExpanded, setIsExpanded }) => {
   //const [isExpanded, setIsExpanded] = useState(true);
   const [hoveredItem, setHoveredItem] = useState(null);
+
+  //dealing with permissions
+  const { permissions } = usePermissions();
+  const canViewDashboard = hasPermission(permissions, 'dashboard_view');
+  const canViewEvents = hasPermission(permissions, 'event_view');
+  const canAddEvent = hasPermission(permissions, 'event_add');
+  const canGenerateInvitations = hasPermission(permissions, 'invitation_generate');
+  const canSendInvitations = hasPermission(permissions, 'invitation_send');
+  const canViewQRCheckIn = hasPermission(permissions, 'scanninglogs_view');
+  const canViewUsers = hasPermission(permissions, 'user_view');
+  const canAddUser = hasPermission(permissions, 'user_add');
   
 
   useEffect(() => {
@@ -27,55 +40,60 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
 }, []);
 
   const menuItems = [
-    {
-      title: "Dashboard",
-      icon: <LayoutDashboard size={20} />,
-      path: "/dashboard",
-    },
-    {
-      title: "Events",
-      icon: <CalendarDays size={20} />,
-      children: [
-        { title: "All Events", path: "/events" },
-        { title: "Create Event", path: "/events/create" },
-        
-      ],
-    },
-    {
-      title: "Invitations",
-      icon: <Send size={20} />,
-      children: [
-        { title: "Generate Invitations", path: "/invitations/generate" },
-      
-        { title: "Send Invitations", path: "/invitations/send" },
-       
-      ],
-    },
-    {
-      title: "QR Check-in",
-      icon: <QrCode size={20} />,
-      children: [
-        // { title: "Live Scan", path: "/qr/live" },
-        { title: "Check-in Logs", path: "/qr/logs" },
-        
-      ],
-    },
-    {
-      title: "Users",
-      icon: <Users size={20} />,
-      children: [
-        { title: "All Users", path: "/users" },
-        { title: "Add User", path: "/users/add" },
-        // { title: "Roles & Permissions", path: "/users/roles" },
-      ],
-    },
-    
-    {
-      title: "Logout",
-      icon: <LogOut size={20} />,
-      path: "/logout",
-    },
-  ];
+  // Dashboard
+  ...(canViewDashboard ? [{
+    title: "Dashboard",
+    icon: <LayoutDashboard size={20} />,
+    path: "/dashboard",
+  }] : []),
+
+  // Events
+  ...(canViewEvents ? [{
+    title: "Events",
+    icon: <CalendarDays size={20} />,
+    children: [
+      { title: "All Events", path: "/events" },
+      ...(canAddEvent ? [{ title: "Create Event", path: "/events/create" }] : []),
+    ].filter(Boolean), // remove empty items
+  }] : []),
+
+  // Invitations
+  ...((canGenerateInvitations || canSendInvitations) ? [{
+    title: "Invitations",
+    icon: <Send size={20} />,
+    children: [
+      ...(canGenerateInvitations ? [{ title: "Generate Invitations", path: "/invitations/generate" }] : []),
+      ...(canSendInvitations ? [{ title: "Send Invitations", path: "/invitations/send" }] : []),
+    ].filter(Boolean),
+  }] : []),
+
+  // QR Check-in
+  ...(canViewQRCheckIn ? [{
+    title: "QR Check-in",
+    icon: <QrCode size={20} />,
+    children: [
+      { title: "Check-in Logs", path: "/qr/logs" },
+    ],
+  }] : []),
+
+  // Users
+  ...((canViewUsers || canAddUser) ? [{
+    title: "Users",
+    icon: <Users size={20} />,
+    children: [
+      ...(canViewUsers ? [{ title: "All Users", path: "/users" }] : []),
+      ...(canAddUser ? [{ title: "Add User", path: "/users/add" }] : []),
+    ].filter(Boolean),
+  }] : []),
+
+  // Logout (always shown)
+  {
+    title: "Logout",
+    icon: <LogOut size={20} />,
+    path: "/logout",
+  },
+];
+
 
   return (
    <div

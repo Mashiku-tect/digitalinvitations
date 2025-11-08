@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../layout/Layout';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '../../context/PermissionContext';
+import { hasPermission } from '../../utils/Permission';
 
 const CheckInLogs = () => {
+  const navigate=useNavigate();
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -14,6 +18,10 @@ const CheckInLogs = () => {
       completeEvents: 0,
       events: []
     });
+
+    const [hasAccess, setHasAccess] = useState(null); // <-- NEW
+
+    
 
   // Fetch events from backend
   useEffect(() => {
@@ -37,12 +45,22 @@ const CheckInLogs = () => {
         setEvents(events);
         //console.log(res.data);
         setFilteredEvents(events);
+        setHasAccess(true);
       } catch (error) {
+        if(error.response && error.response.status === 403) {
+          setHasAccess(false);}
         console.error('Failed to fetch events:', error);
       }
     };
     fetchEvents();
-  }, []);
+  }, [navigate]);
+
+  // 🔒 Handle redirect cleanly before rendering page content
+  useEffect(() => {
+    if (hasAccess === false) {
+      navigate("/403", { replace: true });
+    }
+  }, [hasAccess, navigate]);
 
   // Filter events based on search term
   useEffect(() => {
@@ -65,6 +83,8 @@ const CheckInLogs = () => {
           Authorization: `Bearer ${localStorage.getItem("token")}`, // 👈 send token here
         },
       }); // 👈 fetch check-ins
+
+      console.log(res.data);
       setSelectedEvent({ ...event, checkIns: res.data });
     } catch (error) {
       console.error('Failed to fetch check-ins:', error);
@@ -104,12 +124,12 @@ const CheckInLogs = () => {
     <Layout>
       <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <header className="text-center mb-10">
+          <header className="text-center mb-5">
             <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Event Check-in Logs</h1>
             <p className="mt-3 text-xl text-gray-500">Select an event to view check-in details</p>
           </header>
           
-          <div className="mb-8">
+          <div className="mb-4">
             <div className="relative max-w-2xl mx-auto">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -156,50 +176,52 @@ const CheckInLogs = () => {
 
 
 const EventCard = ({ event, onSelect, formatDate }) => {
-  return (
-    <div 
-      className="flex flex-col rounded-lg shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow duration-300 bg-white"
-      onClick={() => onSelect(event)}
-    >
-      <div className="flex-shrink-0 bg-blue-600 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-white">{event.eventName}</h3>
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-800 text-blue-100">
-            {event.totalGuests || 0} attendees
+ return (
+  <div 
+    className="flex flex-col rounded-lg shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow duration-300 bg-white"
+    onClick={() => onSelect(event)}
+  >
+    <div className="flex-shrink-0 bg-gray-600 px-4 py-1 sm:px-5 sm:py-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h3 className="text-base sm:text-lg font-medium text-white line-clamp-1">{event.eventName}</h3>
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-800 text-blue-100 self-start sm:self-auto">
+          {event.totalGuests || 0} attendees
+        </span>
+      </div>
+    </div>
+    
+    <div className="flex-1 px-4 py-4 sm:px-5 sm:py-5 flex flex-col">
+      <div className="flex-1 space-y-2">
+        <p className="text-sm font-medium text-blue-600">
+          {formatDate(event.eventDate)}
+        </p>
+        <p className="text-lg sm:text-xl font-semibold text-gray-900 line-clamp-2">
+          {event.location}
+        </p>
+        <div>
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs sm:text-sm font-medium bg-green-100 text-green-800">
+            {event.scannedGuestsCount || 0} check-ins recorded
           </span>
         </div>
       </div>
-      <div className="flex-1 px-6 py-5 flex flex-col justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-blue-600">
-            {formatDate(event.eventDate)}
-          </p>
-          <p className="text-xl font-semibold text-gray-900 mt-2">
-            {event.location}
-          </p>
-          <div className="mt-4">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-              {event.scannedGuestsCount || 0} check-ins recorded
-            </span>
-          </div>
-        </div>
-        <div className="mt-6">
-          <div className="flex justify-between items-center">
-            <span className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500">
-              View check-in logs
-              <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </span>
-          </div>
+      
+      <div className="mt-2 pt-4 border-t border-gray-200">
+        <div className="flex justify-between items-center">
+          <span className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500">
+            View check-in logs
+            <svg className="ml-1 h-4 w-4 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </span>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 const EventCheckInDetail = ({ event, onBack, formatDate, formatTime, isLoading }) => {
-  if (isLoading) {
+  if (isLoading  ) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
@@ -208,13 +230,15 @@ const EventCheckInDetail = ({ event, onBack, formatDate, formatTime, isLoading }
     );
   }
 
+  
+
   return (
-    <Layout>
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+  <Layout>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <button 
           onClick={onBack}
-          className="flex items-center text-blue-600 hover:text-blue-800 font-medium mb-6"
+          className="flex items-center text-blue-600 hover:text-blue-800 font-medium mb-6 transition-colors duration-200"
         >
           <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -222,48 +246,51 @@ const EventCheckInDetail = ({ event, onBack, formatDate, formatTime, isLoading }
           Back to Events
         </button>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900">{event.eventName}</h1>
-            <p className="mt-1 text-lg text-gray-600">
+        {/* Event Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden shadow-lg rounded-xl mb-6">
+          <div className="px-5 py-4">
+            <h1 className="text-2xl font-bold text-white mb-1">{event.eventName}</h1>
+            <p className="text-blue-100 font-medium">
               {formatDate(event.eventDate)} • {event.location}
             </p>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-10">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Total Attendees</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{event.totalGuests}</dd>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+          <div className="bg-white overflow-hidden shadow rounded-lg border border-blue-100">
+            <div className="px-4 py-4 sm:p-5">
+              <dt className="text-sm font-medium text-blue-600 truncate">Total Attendees</dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900">{event.totalGuests}</dd>
             </div>
           </div>
           
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Check-ins Recorded</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{event.scannedGuestsCount || 0}</dd>
+          <div className="bg-white overflow-hidden shadow rounded-lg border border-green-100">
+            <div className="px-4 py-4 sm:p-5">
+              <dt className="text-sm font-medium text-green-600 truncate">Check-ins Recorded</dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900">{event.scannedGuestsCount || 0}</dd>
             </div>
           </div>
           
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">Check-in Rate</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+          <div className="bg-white overflow-hidden shadow rounded-lg border border-purple-100">
+            <div className="px-4 py-4 sm:p-5">
+              <dt className="text-sm font-medium text-purple-600 truncate">Check-in Rate</dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900">
                 {Math.round((event.scannedGuestsCount / event.totalGuests) * 100)}%
               </dd>
             </div>
           </div>
         </div>
         
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Check-in Logs</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">All recorded check-ins for this event</p>
+        {/* Check-in Logs */}
+        <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+            <h3 className="text-lg font-bold text-gray-800">Check-in Logs</h3>
+            <p className="text-sm text-gray-600 mt-0.5">All recorded check-ins for this event</p>
           </div>
           
           {event.checkIns.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
+            <ul className="divide-y divide-gray-100">
               {event.checkIns.map(log => (
                 <CheckInLogCard 
                   key={log.id} 
@@ -273,20 +300,21 @@ const EventCheckInDetail = ({ event, onBack, formatDate, formatTime, isLoading }
               ))}
             </ul>
           ) : (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No check-ins</h3>
-              <p className="mt-1 text-sm text-gray-500">No check-ins have been recorded for this event yet.</p>
+            <div className="text-center py-10">
+              <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">No check-ins recorded</h3>
+              <p className="text-sm text-gray-500 mt-1">Check-ins will appear here once guests start arriving</p>
             </div>
           )}
         </div>
       </div>
     </div>
-    </Layout>
-    
-  );
+  </Layout>
+);
 };
 
 const CheckInLogCard = ({ log, formatTime }) => {

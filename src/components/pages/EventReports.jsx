@@ -210,52 +210,81 @@ const EventReport = () => {
 
             {/* Guest List Preview */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H5zm0-2a3 3 0 00-3 3v10a3 3 0 003 3h10a3 3 0 003-3V5a3 3 0 00-3-3H5z" clipRule="evenodd" />
-                </svg>
-                Guest List Preview
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-gray-600 border-b">
-                      <th className="pb-2">Name</th>
-                      <th className="pb-2">Type</th>
-                      <th className="pb-2">RSVP</th>
-                      <th className="pb-2">Status</th>
-                      <th className="pb-2">Check-in Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.guestList.slice(0, 5).map((guest, idx) => (
-                      <tr key={idx} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                        <td className="py-3 text-gray-700">{guest.name}</td>
-                        <td className="py-3">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full capitalize">
-                            {guest.type}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          <span className={`px-2 py-1 text-xs rounded-full ${guest.rsvp === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {guest.rsvp}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          <span className={`px-2 py-1 text-xs rounded-full ${guest.status === 'Checked In' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {guest.status}
-                          </span>
-                        </td>
-                        <td className="py-3 text-gray-500">{guest.scannedAt || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {report.guestList.length > 5 && (
-                  <p className="text-gray-500 text-sm mt-4 text-center">Showing first 5 guests. Download the full report for complete list.</p>
-                )}
-              </div>
-            </div>
+  <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+      <path
+        fillRule="evenodd"
+        d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H5zm0-2a3 3 0 00-3 3v10a3 3 0 003 3h10a3 3 0 003-3V5a3 3 0 00-3-3H5z"
+        clipRule="evenodd"
+      />
+    </svg>
+    Guest List Preview
+  </h2>
+
+  {/* 👇 Scrollable container */}
+  <div className="overflow-x-auto -mx-6 sm:mx-0">
+    <div className="inline-block min-w-full align-middle">
+      <table className="min-w-full whitespace-nowrap">
+        <thead>
+          <tr className="text-left text-gray-600 border-b">
+            <th className="pb-2 pr-6">Name</th>
+            <th className="pb-2 pr-6">Type</th>
+            <th className="pb-2 pr-6">RSVP</th>
+            <th className="pb-2 pr-6">Status</th>
+            <th className="pb-2">Check-in Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.guestList.slice(0, 5).map((guest, idx) => (
+            <tr
+              key={idx}
+              className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+            >
+              <td className="py-3 text-gray-700">{guest.name}</td>
+              <td className="py-3">
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full capitalize">
+                  {guest.type}
+                </span>
+              </td>
+              <td className="py-3">
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    guest.rsvp === "Yes"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {guest.rsvp}
+                </span>
+              </td>
+              <td className="py-3">
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    guest.status === "Checked In"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {guest.status}
+                </span>
+              </td>
+              <td className="py-3 text-gray-500">
+                {guest.scannedAt || "N/A"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {report.guestList.length > 5 && (
+    <p className="text-gray-500 text-sm mt-4 text-center">
+      Showing first 5 guests. Download the full report for complete list.
+    </p>
+  )}
+</div>
+
           </div>
         </div>
       </div>

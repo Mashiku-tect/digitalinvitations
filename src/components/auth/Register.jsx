@@ -58,7 +58,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-4 sm:py-8 px-4 relative">
+    <div className="min-h-screen flex items-center justify-center  py-4 sm:py-8 px-4 relative">
       <ToastContainer />
       
       {/* Spinner Overlay */}

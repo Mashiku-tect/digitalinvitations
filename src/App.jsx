@@ -25,6 +25,11 @@ import RolesAndPermissions from './components/pages/RolesAndPermissions';
 import Logout from './components/pages/Logout';
 import EditUsers from './components/pages/EditUsers';
 import ScanPermissions from './components/pages/ScanPermission';
+import NoPermissionsPage from './components/pages/NoPermissions';
+import Layout from './components/layout/Layout';
+import NotFound from './components/pages/NotFound';
+import Forbidden from './components/pages/Forbidden';
+import Unauthorized from './components/pages/Unauthorized';
 
 import './App.css';
 
@@ -60,7 +65,18 @@ function App() {
 }, [navigate]);
 
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) {
+     return (
+          <Layout>
+            <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading...</p>
+              </div>
+            </div>
+          </Layout>
+        );
+  }
 
   return (
     <div className="App">
@@ -93,6 +109,11 @@ function App() {
 
          <Route path="/events/:id/scan-permissions" element={<ProtectedRoute><ScanPermissions /></ProtectedRoute>} />
         <Route path="/logout" element={<ProtectedRoute><Logout /></ProtectedRoute>} />
+        <Route path="/xx" element={<ProtectedRoute><NoPermissionsPage /></ProtectedRoute>} />
+
+        <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
+        <Route path="/403" element={<ProtectedRoute><Forbidden /></ProtectedRoute>} />
+        <Route path="/401" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
       </Routes>
     </div>
   );
