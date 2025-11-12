@@ -34,7 +34,9 @@ const Dashboard = () => {
         
         const token = localStorage.getItem('token');
         if (!token) {
+          navigate('/login')
           throw new Error('No authentication token found');
+          
         }
 
         // Fetch dashboard statistics
@@ -43,7 +45,10 @@ const Dashboard = () => {
             Authorization: `Bearer ${token}`
           }
         });
-       
+         if(statsResponse.data.message==='Invalid token'){
+          localStorage.removeItem('token');
+          navigate('/login');
+         }
 
         
 

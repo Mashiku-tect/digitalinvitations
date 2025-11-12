@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from "axios";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 
 const ForgotPassword = () => {
@@ -20,20 +23,26 @@ const ForgotPassword = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      setIsLoading(true);
-      
-      // Simulate API call
-      setTimeout(() => {
-        setIsLoading(false);
-        setIsSubmitted(true);
-      }, 2000);
+  if (validateForm()) {
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post("http://localhost:5000/api/request-reset", {
+        email,
+      });
+
+      toast.success(response.data.message);
+      setIsSubmitted(true);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -128,8 +137,15 @@ const ForgotPassword = () => {
         </div>
         
         <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Need help? <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">Contact support</a></p>
-        </div>
+  <p>Need help? 
+    <button 
+      onClick={() => window.location.href = 'mailto:mashikuallen@gmail.com?subject=Support Request&body=Hello, I need assistance with...'}
+      className="font-medium text-indigo-600 hover:text-indigo-500 ml-1 bg-transparent border-none cursor-pointer"
+    >
+      Contact support
+    </button>
+  </p>
+</div>
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ const UserManagement = () => {
             Authorization: `Bearer ${token}`
           }
         });
-        //console.log('Fetched users:', response.data);
+        //console.log('Fetched users:', response.data.users);
         setUsers(response.data.users);
         setHasAccess(true);
       } catch (error) {
@@ -61,18 +61,21 @@ const UserManagement = () => {
   const handleDelete = async (userId, userName) => {
     if (window.confirm(`Are you sure you want to delete ${userName}?`)) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/users/delete/${userId}`, {
+        const response = await axios.delete(`http://localhost:5000/api/deleteuser/delete/${userId}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         });
+
+        console.log('Delete response:', response.data);
         
         toast.success(`User ${userName} deleted successfully`);
         setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
       } catch (error) {
         console.error('Error deleting user:', error);
         const errorMessage = error.response?.data?.message || 'Failed to delete user. Please try again.';
-        toast.error(errorMessage);
+        toast.success(errorMessage);
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
       }
     }
   };

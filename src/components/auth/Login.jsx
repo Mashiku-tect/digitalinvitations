@@ -120,7 +120,7 @@ if (route) {
         </form>
 
         <div className="text-center mt-4">
-          <Link to="/register" className="text-blue-600 hover:text-blue-800">Register</Link>
+          <Link to="/forgot-password" className="text-blue-600 hover:text-blue-800">Forgot Password ?</Link>
         </div>
       </Card>
     </div>

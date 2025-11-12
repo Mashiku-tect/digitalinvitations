@@ -11,18 +11,36 @@ const EditEvent = () => {
   const [formData, setFormData] = useState({
     name: '',
     date: '',
+    endDate: '',
     time: '',
     endTime: '',
     location: '',
     description: '',
     category: 'personal',
+    package: 'Basic', // Added package field
     excelFile: null,
     fileName: ''
   });
 
   const [uploadStatus, setUploadStatus] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true);
   const [hasAccess, setHasAccess] = useState(null);
+
+  const categories = [
+    { value: 'personal', label: 'Personal' },
+    { value: 'business', label: 'Business' },
+    { value: 'education', label: 'Education' },
+    { value: 'entertainment', label: 'Entertainment' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const packages = [ // Added packages array
+    { value: 'Basic', label: 'Basic' },
+    { value: 'Standard', label: 'Standard' },
+    { value: 'Pro', label: 'Pro' },
+    { value: 'Elite', label: 'Elite' }
+  ];
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -35,15 +53,17 @@ const EditEvent = () => {
         });
         
         const event = response.data.event;
-        console.log("event dataa", response.data.event);
+       // console.log("event dataa", response.data.event);
         setFormData({
           name: event.eventName,
           date: event.eventDate.split('T')[0],
+          endDate: event.endDate ? event.endDate.split('T')[0] : event.eventDate.split('T')[0],
           time: event.eventTime,
           endTime: event.eventEndTime || '',
           location: event.location,
           description: event.description,
           category: event.category,
+          package: event.packagename || 'Basic', // Set package from event data
           excelFile: null,
           fileName: ''
         });
@@ -55,6 +75,8 @@ const EditEvent = () => {
         }
         console.error('Error fetching event:', error);
         toast.error('Failed to load event data');
+      } finally {
+        setIsLoadingEvent(false);
       }
     };
 
@@ -73,6 +95,14 @@ const EditEvent = () => {
       ...prev,
       [name]: value
     }));
+
+    // Auto-adjust end date if it's before start date
+    if (name === 'date' && value > formData.endDate) {
+      setFormData(prev => ({
+        ...prev,
+        endDate: value
+      }));
+    }
   };
 
   const handleExcelChange = (e) => {
@@ -97,30 +127,55 @@ const EditEvent = () => {
     }
   };
 
+  const validateForm = () => {
+    // Check if end date is before start date
+    if (formData.endDate && formData.date && formData.endDate < formData.date) {
+      toast.error('End date cannot be before start date');
+      return false;
+    }
+
+    // If same day, check if end time is after start time
+    if (formData.endTime && formData.time && formData.date === formData.endDate && formData.endTime <= formData.time) {
+      toast.error('End time must be after start time when events are on the same day');
+      return false;
+    }
+
+    // Check if event duration is reasonable (not more than 30 days)
+    if (formData.date && formData.endDate) {
+      const startDate = new Date(formData.date);
+      const endDate = new Date(formData.endDate);
+      const durationInDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+      if (durationInDays > 30) {
+        toast.error('Event duration seems too long. Please check your dates.');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (formData.endTime && formData.time && formData.endTime <= formData.time) {
-      toast.error('End time must be after start time');
+    if (!validateForm()) {
       return;
     }
 
-    //check if the user has uploaded a new excel file
-    if(formData.excelFile){
+    // Check if the user has uploaded a new excel file
+    if (formData.excelFile) {
       const validExtensions = ['.xlsx', '.xls', '.csv'];
       const fileExtension = formData.excelFile.name.substring(formData.excelFile.name.lastIndexOf('.')).toLowerCase();
       if (!validExtensions.includes(fileExtension)) {
         toast.error('Please upload a valid Excel file (.xlsx, .xls, or .csv)');
         return;
       }
-    }
-    else{
-      //force the user to upload a file
+    } else {
+      // Force the user to upload a file
       toast.error('Please upload an Excel file to update the guest list');
       return; 
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem('token');
@@ -128,11 +183,13 @@ const EditEvent = () => {
       
       data.append("name", formData.name);
       data.append("date", formData.date);
+      data.append("endDate", formData.endDate);
       data.append("time", formData.time);
       data.append("endTime", formData.endTime);
       data.append("location", formData.location);
       data.append("description", formData.description);
       data.append("category", formData.category);
+      data.append("package", formData.package); // Added package to form data
       
       // Only append the file if a new one was selected
       if (formData.excelFile) {
@@ -156,22 +213,31 @@ const EditEvent = () => {
         navigate(`/viewevents/${id}`);
       }, 1500);
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Error updating event");
+      console.error(err.response.data.message);
+      alert(err.response.data.message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const categories = [
-    { value: 'personal', label: 'Personal' },
-    { value: 'business', label: 'Business' },
-    { value: 'education', label: 'Education' },
-    { value: 'entertainment', label: 'Entertainment' },
-    { value: 'other', label: 'Other' }
-  ];
+  const getEventDuration = () => {
+    if (!formData.date || !formData.endDate) return '';
+    
+    const startDate = new Date(formData.date);
+    const endDate = new Date(formData.endDate);
+    const durationInDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+    
+    if (durationInDays === 0) {
+      return 'Single-day event';
+    } else if (durationInDays === 1) {
+      return '1 day';
+    } else {
+      return `${durationInDays} days`;
+    }
+  };
 
-  if (loading || hasAccess === null) {
+  // Only show loading for initial event data fetch, not for form submission
+  if (isLoadingEvent || hasAccess === null) {
     return (
       <Layout>
         <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
@@ -204,15 +270,6 @@ const EditEvent = () => {
           theme="light"
         />
         
-        {loading && (
-          <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
-            <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-1"></div>
-              <p className="text-gray-700 text-sm">Updating your event...</p>
-            </div>
-          </div>
-        )}
-        
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-4 text-center">
@@ -241,11 +298,11 @@ const EditEvent = () => {
                   />
                 </div>
 
-                {/* Date, Time, End Time - Three columns */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Start Date, End Date, Start Time, End Time - Four columns on desktop, stacked on mobile */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                      Date *
+                      Start Date *
                     </label>
                     <input
                       type="date"
@@ -255,6 +312,22 @@ const EditEvent = () => {
                       onChange={handleChange}
                       required
                       min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date *
+                    </label>
+                    <input
+                      type="date"
+                      id="endDate"
+                      name="endDate"
+                      value={formData.endDate}
+                      onChange={handleChange}
+                      required
+                      min={formData.date}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
@@ -276,7 +349,7 @@ const EditEvent = () => {
 
                   <div>
                     <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
-                      End Time
+                      End Time *
                     </label>
                     <input
                       type="time"
@@ -284,13 +357,28 @@ const EditEvent = () => {
                       name="endTime"
                       value={formData.endTime}
                       onChange={handleChange}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
                 </div>
 
-                {/* Location and Category - Two columns */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Duration Display */}
+                {formData.date && formData.endDate && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">
+                        {formData.date === formData.endDate ? 'Single-day Event' : 'Multi-day Event'}
+                      </span>
+                      <span className="text-sm text-blue-600 font-semibold">
+                        {getEventDuration()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Location, Category, and Package - Three columns */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                       Location *
@@ -326,9 +414,30 @@ const EditEvent = () => {
                       ))}
                     </select>
                   </div>
+
+                  {/* Package Selection - Added this section */}
+                  <div>
+                    <label htmlFor="package" className="block text-sm font-medium text-gray-700 mb-1">
+                      Package *
+                    </label>
+                    <select
+                      id="package"
+                      name="package"
+                      value={formData.package}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    >
+                      {packages.map(pkg => (
+                        <option key={pkg.value} value={pkg.value}>
+                          {pkg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Excel File Upload - Simplified */}
+                {/* Excel File Upload */}
                 <div>
                   <label htmlFor="excelFile" className="block text-sm font-medium text-gray-700 mb-1">
                     Update Guest List (Optional)
@@ -364,8 +473,6 @@ const EditEvent = () => {
                         </p>
                       </div>
                     )}
-                    
-                    
                   </div>
                 </div>
 
@@ -399,10 +506,10 @@ const EditEvent = () => {
                 
                 <button
                   type="submit"
-                  disabled={loading}
-                  className={`w-full sm:w-auto px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded transition duration-300 flex items-center justify-center text-sm`}
+                  disabled={isSubmitting}
+                  className={`w-full sm:w-auto px-4 py-2 ${isSubmitting ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded transition duration-300 flex items-center justify-center text-sm`}
                 >
-                  {loading ? (
+                  {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
                       Updating...
@@ -423,6 +530,8 @@ const EditEvent = () => {
           {/* Help Text */}
           <div className="mt-4 text-center text-xs text-gray-600">
             <p>Fields marked with * are required</p>
+            <p className="mt-1">End date cannot be before start date</p>
+            <p className="mt-1">When events are on the same day, end time must be after start time</p>
             <p className="mt-1">Upload a new Excel file only if you want to update your guest list</p>
           </div>
         </div>

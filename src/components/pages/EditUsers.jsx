@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../layout/Layout';
+import { ToastContainer, toast } from 'react-toastify';
 
 const UserEdit = () => {
   const { id } = useParams();
@@ -109,18 +110,15 @@ const UserEdit = () => {
         },
       }
     );
-
-    alert(response.data.message);
+   toast.success(response.data.message);
+    //alert(response.data.message);
     //console.log("user Object",response.data.user.firstName)
     //alert(response.data.message);
-    navigate('/users');
+   setTimeout(() => navigate('/users'), 1500);
   } catch (error) {
-     // Display error from backend
-    if (error.response && error.response.data && error.response.data.message) {
-      alert(error.response.data.message); // Or use setErrors if you want to show inline
-    } else {
-      alert('An unexpected error occurred.');
-    }
+    
+    const errormessage=error.response.data.message;
+    toast.error(errormessage);
   } finally {
     setSaving(false);
   }
@@ -156,6 +154,7 @@ const UserEdit = () => {
   return (
     <Layout>
   <div className="container mx-auto px-3 py-4 max-w-4xl">
+     <ToastContainer position="top-right" autoClose={3000} />
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100">
         <h2 className="text-base font-semibold text-gray-800">User Information</h2>

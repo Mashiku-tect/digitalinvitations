@@ -30,6 +30,7 @@ import Layout from './components/layout/Layout';
 import NotFound from './components/pages/NotFound';
 import Forbidden from './components/pages/Forbidden';
 import Unauthorized from './components/pages/Unauthorized';
+import ResetPassword from './components/auth/ResetPassword';
 
 import './App.css';
 
@@ -50,7 +51,7 @@ function App() {
   };
 
  useEffect(() => {
-  const publicPaths = ['/login', '/register', '/forgot-password'];
+  const publicPaths = ['/login', '/register', '/forgot-password','/reset-password'];
   const currentPath = window.location.pathname;
 
   if (!publicPaths.includes(currentPath)) {
@@ -84,6 +85,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register onRegister={handleRegister} />} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Home /></ProtectedRoute>} />
@@ -114,6 +116,8 @@ function App() {
         <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
         <Route path="/403" element={<ProtectedRoute><Forbidden /></ProtectedRoute>} />
         <Route path="/401" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
+
+        
       </Routes>
     </div>
   );

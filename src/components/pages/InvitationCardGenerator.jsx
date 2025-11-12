@@ -6,6 +6,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import Layout from "../layout/Layout";
 import axios from "axios";
+import { ToastContainer, toast } from 'react-toastify';
 
 const fonts = [
   // Basic system fonts
@@ -117,13 +118,16 @@ const CardDesigner = () => {
         });
         setEvents(response.data.events || []);
       } catch (error) {
+        const errrormessage=error.response.data.message;
          if (error.response && error.response.status === 403) {
         // Handle unauthorized access, maybe redirect to login
-        alert('You Need Event Viwer Permission to load events');
+        //alert('You Need Event Viwer Permission to load events');
        // console.log('Unauthorized access to event details');
+       toast.error(errrormessage)
         return;
       }
-        console.error('Error fetching events:', error);
+       // console.error('Error fetching events:', error);
+       toast.error(errrormessage)
       } finally {
         setLoadingEvents(false);
       }
@@ -205,10 +209,13 @@ const CardDesigner = () => {
       setGuestNames(names);
       setGuestTypes(types);
       setPreviewIndex(0);
+
     } catch (error) {
+      const errormessage=error.response.data.message;
+      toast.error(errormessage);
      
-      console.error('Error fetching event details:', error);
-      alert('Failed to load event guests');
+     // console.error('Error fetching event details:', error);
+      //alert('Failed to load event guests');
     }
   };
 
@@ -293,7 +300,8 @@ const CardDesigner = () => {
         
         // Create form data for upload
         const formData = new FormData();
-        formData.append('card', blob, `${guest.firstName}_${guest.lastName}_${guest.id}.${imageFileType || 'png'}`);
+       // Simply remove the imageFileType from filename or keep it consistent
+formData.append('card', blob, `${guest.firstName}_${guest.lastName}_${guest.id}.png`);
         formData.append('eventId', selectedEvent);
         formData.append('guestId', guest.id);
         
@@ -309,13 +317,16 @@ const CardDesigner = () => {
           }
         );
         
-        console.log(`Card uploaded for ${guestNames[i]}:`, response.data);
+        //console.log(`Card uploaded for ${guestNames[i]}:`, response.data);
       }
       
-      alert('All cards published successfully!');
+      //alert('All cards published successfully!');
+      toast.success('All Cards Uploaded Successfully!')
     } catch (error) {
-      console.error('Error publishing cards:', error);
-      alert('Failed to publish some cards. Please try again.');
+      const errormessage=error.response.data.message;
+      toast.error(errormessage);
+      //console.error('Error publishing cards:', error);
+      //alert('Failed to publish some cards. Please try again.');
     } finally {
       setPublishing(false);
     }
@@ -362,6 +373,7 @@ const CardDesigner = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-100 p-6 flex flex-col md:flex-row gap-6">
+        <ToastContainer position="top-right" autoClose={3000} />
         {/* Left Sidebar */}
         <div className="flex-1 space-y-6">
           <h1 className="text-3xl font-extrabold text-gray-800">🎉 Invitation Card Designing</h1>
@@ -384,12 +396,14 @@ const CardDesigner = () => {
                 className="w-full p-2 border border-gray-300 rounded-lg cursor-pointer hover:border-purple-500"
                 disabled={loadingEvents}
               >
-                <option value="">-- Select an Event --</option>
-                {events.map(event => (
-                  <option key={event.id} value={event.id}>
-                    {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
-                  </option>
-                ))}
+                         <option value="">-- Select an Event --</option>
+{events
+  .filter(event => event.isInitialMessageSent === false)
+  .map(event => (
+    <option key={event.id} value={event.id}>
+      {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
+    </option>
+  ))}
               </select>
               {loadingEvents && (
                 <p className="text-sm text-gray-500 mt-1">Loading events...</p>

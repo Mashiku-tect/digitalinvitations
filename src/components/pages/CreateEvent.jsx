@@ -148,6 +148,7 @@ const CreateEvent = () => {
       data.append("description", formData.description);
       data.append("category", formData.category);
       data.append("package", formData.package);
+      data.append("endDate", formData.endDate);
       data.append("excelFile", formData.excelFile);
 
       const res = await axios.post(

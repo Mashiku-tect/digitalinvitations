@@ -48,6 +48,8 @@ const ScanPermissions = () => {
       const response = await axios.get(`http://localhost:5000/api/events/${id}/scan-permissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      console.log("Scanners",response.data.scanners)
       setScanners(response.data.scanners || []);
     } catch (error) {
       console.error('Error fetching scan permissions:', error);

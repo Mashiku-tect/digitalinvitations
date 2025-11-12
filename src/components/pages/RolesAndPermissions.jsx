@@ -33,7 +33,8 @@ const UserPermissions = () => {
     {"id":"73cc74ae-baec-11f0-a366-f430b9110f54","name":"scanninglogs_view","description":"Can view QR code scanning logs"},
     {"id":"73cc752f-baec-11f0-a366-f430b9110f54","name":"dashboard_view","description":"Can view dashboard"},
     {"id":"73cc75ed-baec-11f0-a366-f430b9110f54","name":"invitation_generate","description":"Can generate invitation cards"},
-    {"id":"73cc7661-baec-11f0-a366-f430b9110f54","name":"invitation_send","description":"Can send invitations"}
+    {"id":"73cc7661-baec-11f0-a366-f430b9110f54","name":"invitation_send","description":"Can send invitations"},
+    {"id":"d8b88424-bd33-11f0-8d4d-f430b9110f54","name":"call_status_update","description":"user can update the call status of the guest"}
   ];
 
   useEffect(() => {
@@ -128,8 +129,9 @@ const UserPermissions = () => {
       navigate('/users');
     } catch (error) {
       const errormessage= error.response?.data?.message || error.message;
+      const errordetails= error.response?.data?.details || '';
       console.error('Error updating permissions:', error);
-      alert(`Failed to update permissions: ${errormessage}`);
+      alert(`Failed to update permissions: ${errormessage} ${errordetails}`);
     } finally {
       setSaving(false);
     }

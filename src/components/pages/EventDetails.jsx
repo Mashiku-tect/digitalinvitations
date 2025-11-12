@@ -4,6 +4,7 @@ import Layout from '../layout/Layout';
 import axios from 'axios';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
+import { ToastContainer, toast } from 'react-toastify';
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -287,15 +288,28 @@ const EventDetails = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
+        const response=await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        navigate('/events');
+        
+   toast.success(response.data.message);
+setTimeout(() => {
+  navigate('/events');
+}, 1500);
+
       } catch (error) {
-        console.error('Error deleting event:', error);
-        alert('Failed to delete event');
+        let errormessage;
+        if(error.response && error.response.data && error.response.data.message){
+         errormessage=error.response.data.message;
+        }
+        else{
+          errormessage='Uknown Error Occured';
+        }
+        //console.error('Error deleting event:', error);
+        //alert('Failed to delete event');
+        toast.error(errormessage)
       }
     }
   };
@@ -345,11 +359,11 @@ const EventDetails = () => {
     const status = guest.rsvpStatus || 'Pending';
     const getStatusStyles = () => {
       switch (status.toLowerCase()) {
-        case 'confirmed':
+        case 'Accepted':
           return 'bg-green-100 text-green-800';
-        case 'declined':
+        case 'Declined':
           return 'bg-red-100 text-red-800';
-        case 'maybe':
+        case 'Pending':
           return 'bg-yellow-100 text-yellow-800';
         default:
           return 'bg-gray-100 text-gray-800';
@@ -529,8 +543,8 @@ const EventDetails = () => {
               {renderRSVPStatus(guest)}
             </td>
             <td className="py-2 px-2">
-              <span className={`px-1.5 py-0.5 rounded-full text-xs ${guest.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {guest.status || 'Pending'}
+              <span className={`px-1.5 py-0.5 rounded-full text-xs ${guest.rsvpStatus === 'Accepted' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                {guest.rsvpStatus || 'Pending'}
               </span>
             </td>
           </>
@@ -575,6 +589,7 @@ const EventDetails = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-6 px-3 md:px-6">
+        <ToastContainer position="top-right" autoClose={3000} />
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-4 flex justify-between items-center">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
 
 const SendInvitations = () => {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ const SendInvitations = () => {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
 
   // Fetch events on component mount
   useEffect(() => {
@@ -23,16 +26,20 @@ const SendInvitations = () => {
             Authorization: `Bearer ${token}`
           }
         });
+        //console.log("events data",response.data.events)
         setEvents(response.data.events || []);
       } catch (error) {
+        const errormessage=error.response.data.message;
           if (error.response && error.response.status === 403) {
+            toast.error('You Need Event Viewing  Permission to load events')
         // Handle unauthorized access, maybe redirect to login
-        alert('You Need Event Viwer Permission to load events');
+        //alert('You Need Event Viwer Permission to load events');
        // console.log('Unauthorized access to event details');
         return;
       }
-        console.error('Error fetching events:', error);
-        alert('Failed to load events');
+       // console.error('Error fetching events:', error);
+        //alert('Failed to load events');
+        toast.error(errormessage);
       } finally {
         setLoadingEvents(false);
       }
@@ -59,7 +66,6 @@ const SendInvitations = () => {
         'http://localhost:5000/api/invitations/send/SMS',
         {
           eventId: selectedEvent,
-          message: message
         },
         {
           headers: {
@@ -74,19 +80,35 @@ const SendInvitations = () => {
         }
       );
       
-      alert('Invitations sent successfully!');
+      // Set summary data and show modal
+      setSummaryData(response.data);
+      setShowSummary(true);
+      
     } catch (error) {
-      console.error('Error sending invitations:', error);
-      alert('Failed to send invitations. Please try again.');
+      //console.error('Error sending invitations:', error);
+      const errormessage=error?.response?.data.message;
+      toast.error(errormessage);
+      //alert(`Failed to send invitations ${errormessage}`);
     } finally {
       setSending(false);
       setSendProgress(100);
     }
   };
 
+  const closeSummary = () => {
+    setShowSummary(false);
+    setSummaryData(null);
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
+        <ToastContainer position="top-right" autoClose={3000} />
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="mb-6 text-center">
@@ -112,38 +134,20 @@ const SendInvitations = () => {
                   disabled={loadingEvents}
                 >
                   <option value="">-- Select an Event --</option>
-                  {events.map(event => (
-                    <option key={event.id} value={event.id}>
-                      {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
-                    </option>
-                  ))}
+{events
+  .filter(event => event.isInitialMessageSent === false)
+  .map(event => (
+    <option key={event.id} value={event.id}>
+      {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
+    </option>
+  ))}
+
                 </select>
                 {loadingEvents && (
                   <p className="text-xs text-gray-500 mt-1">Loading events...</p>
                 )}
               </div>
               
-              {/* Message Composition */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                    Invitation Message *
-                  </label>
-                  <span className="text-xs text-gray-500">
-                    {message.length} characters
-                  </span>
-                </div>
-                <textarea
-                  id="message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-vertical"
-                  placeholder="Write your invitation message here..."
-                />
-             
-              </div>
-
               {/* Send Button Section */}
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -200,10 +204,90 @@ const SendInvitations = () => {
               </div>
             </div>
           </div>
-
-         
         </div>
       </div>
+
+      {/* Summary Modal */}
+      {showSummary && summaryData && (
+  <div className="fixed inset-0 bg-gray-500 bg-opacity-10 backdrop-blur-[1px] flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200 transform transition-all duration-200 scale-100">
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-800">Invitations Sent Successfully!</h3>
+          <button
+            onClick={closeSummary}
+            className="text-gray-400 hover:text-gray-600 transition duration-200 hover:bg-gray-100 rounded-full p-1"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Success Message */}
+        <div className="mb-6">
+          <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mx-auto mb-3">
+            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <p className="text-green-600 text-center font-medium">{summaryData.message}</p>
+        </div>
+
+        {/* Summary Section */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
+          <h4 className="font-semibold text-gray-800 mb-3 text-center">Summary</h4>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+              <div className="text-2xl font-bold text-blue-600">{summaryData.summary.sent}</div>
+              <div className="text-xs text-gray-600 mt-1">Sent</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+              <div className="text-2xl font-bold text-yellow-600">{summaryData.summary.skipped}</div>
+              <div className="text-xs text-gray-600 mt-1">Skipped</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+              <div className="text-2xl font-bold text-green-600">{summaryData.summary.remindersCreated}</div>
+              <div className="text-xs text-gray-600 mt-1">Reminders</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Reminders Section */}
+        {summaryData.reminders && summaryData.reminders.length > 0 && (
+          <div className="mb-6">
+            <h4 className="font-semibold text-gray-800 mb-3">Scheduled Reminders</h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {summaryData.reminders.map((reminder, index) => (
+                <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">
+                      Reminder {reminder.reminder_number}
+                    </span>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      {formatDate(reminder.scheduled_at)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Close Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={closeSummary}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition duration-300"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </Layout>
   );
 };

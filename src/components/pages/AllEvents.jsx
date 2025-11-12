@@ -4,6 +4,7 @@ import axios from "axios";
 import Layout from '../layout/Layout';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
+import { ToastContainer, toast } from 'react-toastify';
 
 const EventManager = () => {
   const navigate = useNavigate();
@@ -74,15 +75,24 @@ const EventManager = () => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
+        const response=await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(prev => ({
           ...prev,
           events: prev.events.filter(event => event.id !== id)
         }));
+        toast.success(response.data.message)
       } catch (err) {
-        console.error("Error deleting event:", err);
+        let errormessage;
+          if (err.response && err.response.data && err.response.data.message) {
+              errormessage=err.response.data.message;
+          }
+          else{
+            errormessage='Uknown Error Occured';
+          }
+       toast.error(errormessage)
+        //console.error("Error deleting event:", err);
       }
     }
   };
@@ -135,6 +145,7 @@ const EventManager = () => {
   return (
     <Layout>
       <div className="min-h-screen  p-2 md:p-8">
+        <ToastContainer position="top-right" autoClose={3000} />
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <header className="mb-2 text-center">
