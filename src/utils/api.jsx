@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: 'http://localhost:5002',
+  baseURL: 'https://ecards.mashikutech.co.tz/digitalinvitations',
   timeout: 10000, // 10 seconds
 });
 
