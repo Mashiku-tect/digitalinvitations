@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../layout/Layout';
+import { ToastContainer, toast } from 'react-toastify';
 import axios from 'axios';
+import 'react-toastify/dist/ReactToastify.css';
+import api from "../../utils/api";
 
 const UserPermissions = () => {
   const { userId } = useParams();
@@ -43,13 +46,14 @@ const UserPermissions = () => {
         const token = localStorage.getItem('token');
         
         // Fetch user details
-        const userResponse = await axios.get(`http://localhost:5000/api/users/getuserinfo/${userId}`, {
+        const userResponse = await api.get(`/api/users/getuserinfo/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUser(userResponse.data.user);
+        //console.log('user data',userResponse.data.user);
 
         // Fetch user's current permissions
-        const permissionsResponse = await axios.get(`http://localhost:5000/api/users/permissions/${userId}`, {
+        const permissionsResponse = await api.get(`/api/users/permissions/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -68,8 +72,10 @@ const UserPermissions = () => {
           setHasAccess(false);
           //alert('You do not have permission to view this user\'s permissions.');
         }
-        console.error('Error fetching user data:', error);
-        alert('Failed to load user data');
+        //console.error('Error fetching user data:', error);
+        //alert('Failed to load user data');
+        const errormessage= error.response?.data?.message || 'Server Error';
+        toast.error(`Failed to load user data: ${errormessage}`);
       } finally {
         setLoading(false);
       }
@@ -77,6 +83,13 @@ const UserPermissions = () => {
 
     fetchUserData();
   }, [userId,navigate]);
+
+  //update the page title
+  useEffect(()=>{
+    if(user){
+      document.title=`Edit Permissions - ${user.firstname} ${user.lastname}`;
+    }
+  },[user]);
 
   const handlePermissionToggle = (permissionId) => {
     //console.log("Toggling permission:", permissionId);
@@ -119,19 +132,26 @@ const UserPermissions = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      console.log("Saving permissions:", userPermissions);
+      //console.log("Saving permissions:", userPermissions);
       
-      await axios.put(`http://localhost:5000/api/users/${userId}/permissions`, 
+      await api.put(`/api/users/${userId}/permissions`, 
         { permissions: userPermissions },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('Permissions updated successfully!');
-      navigate('/users');
+      toast.success('Permissions updated successfully!');
+      //navigate after sometime of successful save
+      setTimeout(() => {
+          navigate('/users');
+      }, 2000);
+     
+      //alert('Permissions updated successfully!');
+     
     } catch (error) {
       const errormessage= error.response?.data?.message || error.message;
       const errordetails= error.response?.data?.details || '';
-      console.error('Error updating permissions:', error);
-      alert(`Failed to update permissions: ${errormessage} ${errordetails}`);
+      toast.error(`Failed to update permissions: ${errormessage} ${errordetails}`);
+     // console.error('Error updating permissions:', error);
+     // alert(`Failed to update permissions: ${errormessage} ${errordetails}`);
     } finally {
       setSaving(false);
     }
@@ -186,6 +206,7 @@ const UserPermissions = () => {
   return (
    <Layout>
   <div className="container mx-auto px-3 py-4 max-w-4xl">
+      <ToastContainer position="top-right" autoClose={3000} />
     {/* Header */}
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>

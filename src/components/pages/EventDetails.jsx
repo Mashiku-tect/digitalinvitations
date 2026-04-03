@@ -5,6 +5,7 @@ import axios from 'axios';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
 import { ToastContainer, toast } from 'react-toastify';
+import api from "../../utils/api";
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -36,24 +37,41 @@ const EventDetails = () => {
 
   const [hasAccess, setHasAccess] = useState(null);
 
+  // Check if a date is in the past
+  const isDatePast = (dateString) => {
+    const eventDate = new Date(dateString);
+    const currentDate = new Date();
+    // Reset time parts to compare only dates
+    eventDate.setHours(0, 0, 0, 0);
+    currentDate.setHours(0, 0, 0, 0);
+    return eventDate < currentDate;
+  };
+
+  // Check if event is "Not Dealt" (active but past date)
+  const isNotDealtEvent = (event) => {
+    return event && event.active && isDatePast(event.eventDate) && !event.completed && !event.cancelled;
+  };
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:5000/api/events/eventdetails/${id}`, {
+        const response = await api.get(`/api/events/eventdetails/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         setEvent(response.data.event);
-        console.log("event data",response.data.event)
+      //  console.log('event Guests',response.data.guests)
         setGuests(response.data.event.Guests || response.data.guests || []);
+
+       // console.log('event guests',response.data.guests)
         setHasAccess(true);
       } catch (error) {
           if(error.response && error.response.status === 403){
             setHasAccess(false);
           }
-        console.error('Error fetching event:', error);
+        //console.error('Error fetching event:', error);
       } finally {
         setLoading(false);
       }
@@ -62,19 +80,25 @@ const EventDetails = () => {
     fetchEvent();
   }, [id,navigate]);
 
-  // 🔒 Handle redirect cleanly before rendering page content
+  //  Handle redirect cleanly before rendering page content
   useEffect(() => {
     if (hasAccess === false) {
       navigate("/403", { replace: true });
     }
   }, [hasAccess, navigate]);
 
+  //update the page title to be the event Name
+  useEffect(() => {
+    if (event && event.eventName) {
+      document.title = `${event.eventName}`;
+    }});
+
   // Fetch scan permissions and tenants
   const fetchScanPermissions = async () => {
     try {
       setLoadingPermissions(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/events/${id}/scan-permissions`, {
+      const response = await api.get(`/api/events/${id}/scan-permissions`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -82,7 +106,7 @@ const EventDetails = () => {
       setScanners(response.data.scanners || []);
       
       // Also fetch all available tenants
-      const tenantsResponse = await axios.get('http://localhost:5000/api/users/tenants', {
+      const tenantsResponse = await api.get('/api/users/tenants', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -97,7 +121,7 @@ const EventDetails = () => {
       setAvailableTenants(available);
       
     } catch (error) {
-      console.error('Error fetching scan permissions:', error);
+      //console.error('Error fetching scan permissions:', error);
       alert('Failed to load scanner permissions');
     } finally {
       setLoadingPermissions(false);
@@ -110,55 +134,12 @@ const EventDetails = () => {
     await fetchScanPermissions();
   };
 
-  // Add tenant as scanner
-  const addScanner = async (tenantId) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(`http://localhost:5000/api/events/${id}/scan-permissions`, 
-        { tenant_id: tenantId },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      
-      // Refresh the lists
-      await fetchScanPermissions();
-      alert('Tenant added as scanner successfully!');
-    } catch (error) {
-      console.error('Error adding scanner:', error);
-      alert('Failed to add tenant as scanner');
-    }
-  };
-
-  // Remove tenant from scanners
-  const removeScanner = async (scannerId) => {
-    if (window.confirm('Are you sure you want to remove this tenant\'s scan permission?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/events/${id}/scan-permissions/${scannerId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
-        // Refresh the lists
-        await fetchScanPermissions();
-        alert('Scan permission removed successfully!');
-      } catch (error) {
-        console.error('Error removing scanner:', error);
-        alert('Failed to remove scan permission');
-      }
-    }
-  };
-
   // Update guest status for call actions
   const updateCallStatus = async (guestId, field, value) => {
     try {
       const token = localStorage.getItem('token');
-      const response=await axios.put(
-        `http://localhost:5000/api/events/${id}/guests/${guestId}/status`,
+      const response=await api.put(
+        `/api/events/${id}/guests/${guestId}/status`,
         { field, value },
         {
           headers: {
@@ -176,11 +157,11 @@ const EventDetails = () => {
         )
       );
       const message= response.data.message || 'Call status updated successfully';
+      toast.success(message);
       
-      alert(message);
     } catch (error) {
       const errormessage=error.response?.data?.message || 'Failed to update call status';
-      alert(errormessage);
+      toast.error(errormessage);
     }
   };
 
@@ -190,8 +171,8 @@ const EventDetails = () => {
       setUpdating(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.put(
-          `http://localhost:5000/api/events/cancel/${id}`,
+        const response = await api.put(
+          `/api/events/cancel/${id}`,
           {},
           {
             headers: {
@@ -202,10 +183,10 @@ const EventDetails = () => {
         
         // Update the event state with cancelled status
         setEvent({ ...event, active: false, cancelled: true });
-        alert('Event cancelled successfully!');
+        toast.success(response.data.message);
       } catch (error) {
-        console.error('Error cancelling event:', error);
-        alert('Failed to cancel event');
+        const errormessage=error.response?.data?.message || 'Failed to cancel event';
+        toast.error(errormessage);
       } finally {
         setUpdating(false);
       }
@@ -288,7 +269,7 @@ const EventDetails = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
         const token = localStorage.getItem('token');
-        const response=await axios.delete(`http://localhost:5000/api/events/delete/${id}`, {
+        const response=await api.delete(`/api/events/delete/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -307,8 +288,6 @@ setTimeout(() => {
         else{
           errormessage='Uknown Error Occured';
         }
-        //console.error('Error deleting event:', error);
-        //alert('Failed to delete event');
         toast.error(errormessage)
       }
     }
@@ -319,8 +298,8 @@ setTimeout(() => {
       setUpdating(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.put(
-          `http://localhost:5000/api/events/complete/${id}`,
+        const response = await api.put(
+          `/api/events/complete/${id}`,
           {},
           {
             headers: {
@@ -331,26 +310,67 @@ setTimeout(() => {
         
         // Update the event state with the completed status
         setEvent({ ...event, active: false });
-        alert('Event marked as completed successfully!');
+        const responsemessage=response.data.message || 'Event marked as completed successfully';
+        toast.success(responsemessage);
       } catch (error) {
-        console.error('Error marking event as completed:', error);
-        alert('Failed to mark event as completed');
+        const errormessage=error.response?.data?.message || 'Failed to mark event as completed';
+        toast.error(errormessage);
       } finally {
         setUpdating(false);
       }
     }
   };
 
-  // Render status display for WhatsApp/SMS (read-only from backend)
-  const renderStatusDisplay = (status) => {
+  // Render channel status icons for SMS/WhatsApp
+  const renderChannelStatus = (smsSent, whatsappSent) => {
+    // If both failed
+    if (!smsSent && !whatsappSent) {
+      return (
+        <div className="flex items-center space-x-1" title="Not sent">
+          <span className="text-red-500 text-sm">✗</span>
+          <span className="text-xs text-gray-500">Not sent</span>
+        </div>
+      );
+    }
+    
+    // If both succeeded (shouldn't normally happen, but just in case)
+    if (smsSent && whatsappSent) {
+      return (
+        <div className="flex items-center space-x-2" title="Sent via both SMS and WhatsApp">
+          <span className="text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </span>
+          <span className="text-green-600 text-xs font-medium">Both</span>
+        </div>
+      );
+    }
+    
+    // If sent via WhatsApp only
+    if (whatsappSent) {
+      return (
+        <div className="flex items-center space-x-1" title="Sent via WhatsApp">
+          <span className="text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.549 4.125 1.517 5.874L0 24l6.335-1.652A11.96 11.96 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm6.958 17.148c-.152.423-.864.773-1.44.824-.364.032-.828.058-2.438-.558-2.039-.77-3.367-2.668-3.467-2.79-.1-.12-.792-1.058-.792-2.02 0-.962.49-1.433.668-1.634.178-.2.389-.25.518-.25h.422c.13 0 .259-.003.37.018.112.02.258.108.367.316.11.208.374.724.407.78.033.057.066.133.016.208-.05.074-.074.133-.148.208-.074.074-.148.162-.211.208-.064.045-.133.1-.057.198.074.099.333.424.715.686.494.344.894.45 1.008.502.114.052.182.033.25-.05.067-.083.287-.358.357-.481.07-.123.139-.103.25-.062.11.04.704.332 1.05.493.347.162.574.243.658.374.084.13.084.755-.068 1.178z"/>
+            </svg>
+          </span>
+          <span className="text-green-600 text-xs font-medium">WhatsApp</span>
+        </div>
+      );
+    }
+    
+    // If sent via SMS only (default fallback)
     return (
-      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-        status === true  
-          ? 'bg-green-100 text-green-800' 
-          : 'bg-red-100 text-red-800'
-      }`}>
-        {status ? 'Yes': 'No'}
-      </span>
+      <div className="flex items-center space-x-1" title="Sent via SMS">
+        <span className="text-blue-500">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+          </svg>
+        </span>
+        <span className="text-blue-600 text-xs font-medium">SMS</span>
+      </div>
     );
   };
 
@@ -377,8 +397,22 @@ setTimeout(() => {
     );
   };
 
-  // Render action buttons for calls
+  // Render action buttons for calls - HIDDEN for Not Dealt events
   const renderCallActionButtons = (guest, field) => {
+    // Don't show call buttons for Not Dealt events
+    if (isNotDealtEvent(event)) {
+      const currentStatus = guest[field] || 'Not Called';
+      return (
+        <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+          currentStatus === 'Reachable' ? 'bg-green-100 text-green-800' :
+          currentStatus === 'Not Reachable' ? 'bg-red-100 text-red-800' :
+          'bg-gray-100 text-gray-800'
+        }`}>
+          {currentStatus}
+        </span>
+      );
+    }
+
     const currentStatus = guest[field] || 'Not Called';
     
     return (
@@ -421,7 +455,7 @@ setTimeout(() => {
         return (
           <>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">RSVP Status</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">SMS Sent</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Invitation</th>
           </>
         );
       
@@ -429,7 +463,7 @@ setTimeout(() => {
         return (
           <>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">RSVP Status</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">SMS Sent</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Invitation</th>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Call Status</th>
           </>
         );
@@ -438,8 +472,8 @@ setTimeout(() => {
         return (
           <>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">RSVP Status</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">SMS Sent</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Remainder Sent</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Invitation</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Reminder 1</th>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Call Status</th>
           </>
         );
@@ -448,9 +482,9 @@ setTimeout(() => {
         return (
           <>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">RSVP Status</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">SMS Sent</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Remainder 1</th>
-            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Remainder 2</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Invitation</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Reminder 1</th>
+            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Reminder 2</th>
             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Call Status</th>
           </>
         );
@@ -469,6 +503,11 @@ setTimeout(() => {
   const renderStatusCells = (guest) => {
     const packageName = event?.packagename || 'Basic';
     
+    // Note: Assuming the backend will provide these fields:
+    // smsSent -> invitationSmsSent, invitationWhatsappSent
+    // Remainder1Sent -> reminder1SmsSent, reminder1WhatsappSent
+    // Remainder2Sent -> reminder2SmsSent, reminder2WhatsappSent
+    
     switch (packageName) {
       case 'Basic':
         return (
@@ -477,7 +516,10 @@ setTimeout(() => {
               {renderRSVPStatus(guest)}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.smsSent)}
+              {renderChannelStatus(
+                guest.invitationSmsSent || guest.smsSent, // fallback to old field
+                guest.invitationWhatsappSent
+              )}
             </td>
           </>
         );
@@ -489,7 +531,10 @@ setTimeout(() => {
               {renderRSVPStatus(guest)}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.smsSent)}
+              {renderChannelStatus(
+                guest.invitationSmsSent || guest.smsSent,
+                guest.invitationWhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
               {renderCallActionButtons(guest, 'callStatus')}
@@ -504,10 +549,16 @@ setTimeout(() => {
               {renderRSVPStatus(guest)}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.smsSent)}
+              {renderChannelStatus(
+                guest.invitationSmsSent || guest.smsSent,
+                guest.invitationWhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.Remainder1Sent)}
+              {renderChannelStatus(
+                guest.reminder1SmsSent || guest.Remainder1Sent,
+                guest.reminder1WhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
               {renderCallActionButtons(guest, 'callStatus')}
@@ -522,13 +573,22 @@ setTimeout(() => {
               {renderRSVPStatus(guest)}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.smsSent)}
+              {renderChannelStatus(
+                guest.invitationSmsSent || guest.smsSent,
+                guest.invitationWhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.Remainder1Sent)}
+              {renderChannelStatus(
+                guest.reminder1SmsSent || guest.Remainder1Sent,
+                guest.reminder1WhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
-              {renderStatusDisplay(guest.Remainder2Sent)}
+              {renderChannelStatus(
+                guest.reminder2SmsSent || guest.Remainder2Sent,
+                guest.reminder2WhatsappSent
+              )}
             </td>
             <td className="py-2 px-2">
               {renderCallActionButtons(guest, 'callStatus')}
@@ -585,6 +645,7 @@ setTimeout(() => {
   }
 
   const pageNumbers = getPageNumbers();
+  const isEventNotDealt = isNotDealtEvent(event);
 
   return (
     <Layout>
@@ -616,8 +677,15 @@ setTimeout(() => {
                 {event.packagename}
               </span>
 
-              {/* Manage Scanners Button */}
-              {event.active && canManageScanners ? (
+              {/* Not Dealt Notice */}
+              {isEventNotDealt && (
+                <span className="px-2 py-1 rounded text-xs font-semibold bg-orange-100 text-orange-800">
+                  Not Dealt
+                </span>
+              )}
+
+              {/* Manage Scanners Button - HIDDEN for Not Dealt events */}
+              {!isEventNotDealt && event.active && canManageScanners ? (
                 <Link
                   to={`/events/${id}/scan-permissions`}
                   className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-1.5 px-3 rounded text-sm transition duration-300 flex items-center"
@@ -636,7 +704,7 @@ setTimeout(() => {
                   </svg>
                   Manage Scanners
                 </Link>
-              ) : (
+              ) : !isEventNotDealt && (
                 <button
                   disabled
                   className="bg-gray-400 text-white font-medium py-1.5 px-3 rounded text-sm flex items-center cursor-not-allowed opacity-70"
@@ -662,8 +730,8 @@ setTimeout(() => {
                 </button>
               )}
 
-              {/* View Report Button */}
-              {!event.cancelled && canViewReports ? (
+              {/* View Report Button - HIDDEN for Not Dealt events */}
+              {!isEventNotDealt && !event.cancelled && canViewReports ? (
                 <Link
                   to={`/events/reports/${id}`}
                   className="bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 rounded text-sm transition duration-300 flex items-center"
@@ -682,7 +750,7 @@ setTimeout(() => {
                   </svg>
                   View Report
                 </Link>
-              ) : (
+              ) : !isEventNotDealt && (
                 <button
                   disabled
                   className="bg-gray-400 text-white font-medium py-1.5 px-3 rounded text-sm flex items-center cursor-not-allowed opacity-70"
@@ -708,7 +776,8 @@ setTimeout(() => {
                 </button>
               )}
 
-              {event.active && !event.cancelled && (
+              {/* Cancel and Complete Buttons - HIDDEN for Not Dealt events */}
+              {!isEventNotDealt && event.active && !event.cancelled && (
                 <>
                   {/* Cancel Event Button */}
                   {canCancelEvent ? (
@@ -854,8 +923,8 @@ setTimeout(() => {
                 </>
               )}
 
-              {/* Edit Event Button */}
-              {canEditEvent && event.active ? (
+              {/* Edit Event Button - HIDDEN for Not Dealt events */}
+              {!isEventNotDealt && canEditEvent && event.active ? (
                 <Link
                   to={`/editevents/${id}/edit`}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded text-sm transition duration-300 flex items-center"
@@ -865,7 +934,7 @@ setTimeout(() => {
                   </svg>
                   Edit
                 </Link>
-              ) : (
+              ) : !isEventNotDealt && (
                 <button
                   disabled
                   className="bg-gray-400 text-white font-medium py-1.5 px-3 rounded text-sm flex items-center cursor-not-allowed opacity-70"
@@ -882,7 +951,7 @@ setTimeout(() => {
                 </button>
               )}
 
-              {/* Delete Event Button */}
+              {/* Delete Event Button - ALWAYS VISIBLE */}
               {canDeleteEvent && (
                 <button
                   onClick={deleteEvent}
@@ -900,16 +969,35 @@ setTimeout(() => {
           {/* Event Card */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="p-4 md:p-6">
+              {/* Not Dealt Event Notice */}
+              {isEventNotDealt && (
+                <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded">
+                  <div className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-orange-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-semibold text-orange-800">Event Not Dealt</h3>
+                      <p className="text-orange-700 text-sm">This event was scheduled for the past but wasn't completed or cancelled. Limited actions are available.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between items-start mb-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{event.eventName}</h1>
                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                   event.cancelled ? 'bg-red-100 text-red-800' : 
+                  isEventNotDealt ? 'bg-orange-100 text-orange-800' :
                   event.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {event.cancelled ? 'Cancelled' : event.active ? 'Upcoming' : 'Completed'}
+                  {event.cancelled ? 'Cancelled' : 
+                   isEventNotDealt ? 'Not Dealt' :
+                   event.active ? 'Upcoming' : 'Completed'}
                 </span>
               </div>
 
+              {/* Rest of the component remains the same */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-3">
                   <div className="flex items-center text-gray-700">
@@ -994,6 +1082,7 @@ setTimeout(() => {
                             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">First Name</th>
                             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Last Name</th>
                             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Phone Number</th>
+                            <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Guest Code</th>
                             <th className="text-left py-1 px-2 text-gray-700 font-medium text-sm">Type</th>
                             {renderStatusColumns()}
                           </tr>
@@ -1005,6 +1094,7 @@ setTimeout(() => {
                               <td className="py-2 px-2 text-gray-700 text-sm">{guest.firstName || 'N/A'}</td>
                               <td className="py-2 px-2 text-gray-700 text-sm">{guest.lastName || 'N/A'}</td>
                               <td className="py-2 px-2 text-gray-700 text-sm">{guest.phone || 'N/A'}</td>
+                              <td className="py-2 px-2 text-gray-700 text-sm">{guest.guestCode || 'N/A'}</td>
                               <td className="py-2 px-2 text-gray-700 text-sm capitalize">{guest.type || 'N/A'}</td>
                               {renderStatusCells(guest)}
                             </tr>
@@ -1087,59 +1177,9 @@ setTimeout(() => {
                 </div>
               ) : (
                 <>
-                  {/* Current Scanners */}
-                  <div className="mb-6">
-                    <h3 className="text-md font-semibold text-gray-800 mb-3">Current Scanners</h3>
-                    {scanners.length > 0 ? (
-                      <div className="space-y-2">
-                        {scanners.map((scanner) => (
-                          <div key={scanner.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <div>
-                              <p className="font-medium text-gray-800 text-sm">
-                                {scanner.tenant?.firstName} {scanner.tenant?.lastName}
-                              </p>
-                              <p className="text-xs text-gray-600">{scanner.tenant?.email}</p>
-                            </div>
-                            <button
-                              onClick={() => removeScanner(scanner.id)}
-                              className="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 rounded text-xs font-medium transition duration-300"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 bg-gray-50 p-3 rounded text-sm">No scanners assigned yet.</p>
-                    )}
-                  </div>
+                 
 
-                  {/* Add New Scanner */}
-                  <div>
-                    <h3 className="text-md font-semibold text-gray-800 mb-3">Add Scanner</h3>
-                    {availableTenants.length > 0 ? (
-                      <div className="space-y-2">
-                        {availableTenants.map((tenant) => (
-                          <div key={tenant.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <div>
-                              <p className="font-medium text-gray-800 text-sm">
-                                {tenant.firstName} {tenant.lastName}
-                              </p>
-                              <p className="text-xs text-gray-600">{tenant.email}</p>
-                            </div>
-                            <button
-                              onClick={() => addScanner(tenant.id)}
-                              className="bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded text-xs font-medium transition duration-300"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 bg-gray-50 p-3 rounded text-sm">No available tenants to add.</p>
-                    )}
-                  </div>
+               
                 </>
               )}
             </div>

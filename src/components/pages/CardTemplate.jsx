@@ -31,6 +31,8 @@ const TemplateDesigner = () => {
     };
   }, []);
 
+ 
+
  useEffect(() => {
   if (backgroundImage && fabricCanvas.current) {
     fabric.Image.fromURL(backgroundImage, (img) => {

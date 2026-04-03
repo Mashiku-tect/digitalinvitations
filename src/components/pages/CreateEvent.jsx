@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import axios from "axios";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import api from "../../utils/api";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const CreateEvent = () => {
     time: '',
     endTime: '',
     location: '',
+    locationUrl: '',
     description: '',
     category: 'personal',
     package: 'Basic',
@@ -21,21 +23,60 @@ const CreateEvent = () => {
     fileName: ''
   });
 
+  const [errors, setErrors] = useState({});
   const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    document.title = "Create Event - eCards";
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Apply input restrictions for name (event name)
+    if (name === 'name') {
+      // Allow letters, spaces, numbers, and '&' only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s&]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    }
+    // Apply input restrictions for location
+    else if (name === 'location') {
+      // Allow letters, spaces, and comma only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s,]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    }
+    // Apply input restrictions for description
+    else if (name === 'description') {
+      // Allow letters, spaces, numbers, and '&' only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s&]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
 
     if (name === 'date' && !formData.endDate) {
       setFormData(prev => ({
         ...prev,
         endDate: value
       }));
+    }
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
     }
   };
 
@@ -59,6 +100,100 @@ const CreateEvent = () => {
       setUploadStatus('success');
       toast.success('Excel file uploaded successfully!');
     }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Event Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Event name is required';
+    } else if (!/^[a-zA-Z0-9\s&]+$/.test(formData.name)) {
+      newErrors.name = 'Event name can only contain letters, numbers, spaces, and & symbol';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Event name must be at least 3 characters';
+    } else if (formData.name.trim().length > 100) {
+      newErrors.name = 'Event name cannot exceed 100 characters';
+    }
+    
+    // Location validation
+    if (!formData.location.trim()) {
+      newErrors.location = 'Location is required';
+    } else if (!/^[a-zA-Z0-9\s,]+$/.test(formData.location)) {
+      newErrors.location = 'Location can only contain letters, numbers, spaces, and commas';
+    } else if (formData.location.trim().length < 3) {
+      newErrors.location = 'Location must be at least 3 characters';
+    } else if (formData.location.trim().length > 200) {
+      newErrors.location = 'Location cannot exceed 200 characters';
+    }
+
+    // Location URL validation
+    if (
+      formData.locationUrl.trim() &&
+      !/^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(formData.locationUrl.trim())
+    ) {
+      newErrors.locationUrl = 'Please enter a valid Google Maps URL';
+    }
+    
+    // Description validation
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required';
+    } else if (!/^[a-zA-Z0-9\s&]+$/.test(formData.description)) {
+      newErrors.description = 'Description can only contain letters, numbers, spaces, and & symbol';
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = 'Description must be at least 10 characters';
+    } else if (formData.description.trim().length > 500) {
+      newErrors.description = 'Description cannot exceed 500 characters';
+    }
+    
+    // Date validations
+    if (!formData.date) {
+      newErrors.date = 'Start date is required';
+    }
+    
+    if (!formData.endDate) {
+      newErrors.endDate = 'End date is required';
+    }
+    
+    // Time validations
+    if (!formData.time) {
+      newErrors.time = 'Start time is required';
+    }
+    
+    if (!formData.endTime) {
+      newErrors.endTime = 'End time is required';
+    }
+    
+    // Category validation
+    if (!formData.category) {
+      newErrors.category = 'Category is required';
+    }
+    
+    // Package validation
+    if (!formData.package) {
+      newErrors.package = 'Package type is required';
+    }
+    
+    // Excel file validation
+    if (!formData.excelFile) {
+      newErrors.excelFile = 'Excel file is required';
+    }
+    
+    setErrors(newErrors);
+    
+    // If there are errors, don't proceed with time validation
+    if (Object.keys(newErrors).length > 0) {
+      return false;
+    }
+    
+    // Validate event times
+    const timeValidation = validateEventTimes();
+    if (!timeValidation.isValid) {
+      toast.error(timeValidation.message);
+      return false;
+    }
+    
+    return true;
   };
 
   const validateEventTimes = () => {
@@ -123,14 +258,8 @@ const CreateEvent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.excelFile) {
-      toast.error('Please upload an Excel file with guest data');
-      return;
-    }
-
-    const validation = validateEventTimes();
-    if (!validation.isValid) {
-      toast.error(validation.message);
+    // Validate form
+    if (!validateForm()) {
       return;
     }
 
@@ -145,14 +274,15 @@ const CreateEvent = () => {
       data.append("time", formData.time);
       data.append("endTime", formData.endTime);
       data.append("location", formData.location);
+      data.append("locationUrl", formData.locationUrl);
       data.append("description", formData.description);
       data.append("category", formData.category);
       data.append("package", formData.package);
       data.append("endDate", formData.endDate);
       data.append("excelFile", formData.excelFile);
 
-      const res = await axios.post(
-        "http://localhost:5000/api/events",
+      const res = await api.post(
+        "/api/events",
         data,
         {
           headers: {
@@ -168,7 +298,6 @@ const CreateEvent = () => {
         navigate("/events");
       }, 1500);
     } catch (err) {
-      //console.error(err);
       toast.error(err.response?.data?.message || "Error creating event");
     } finally {
       setLoading(false);
@@ -239,10 +368,16 @@ const CreateEvent = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                      errors.name ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Enter event name"
+                    maxLength="100"
                   />
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and & symbol only</p>
                 </div>
 
                 {/* Date and Time - 4 columns on desktop, 2 on mobile */}
@@ -257,10 +392,14 @@ const CreateEvent = () => {
                       name="date"
                       value={formData.date}
                       onChange={handleChange}
-                      required
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.date ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.date && (
+                      <p className="mt-1 text-xs text-red-600">{errors.date}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -273,10 +412,14 @@ const CreateEvent = () => {
                       name="endDate"
                       value={formData.endDate}
                       onChange={handleChange}
-                      required
                       min={formData.date || new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.endDate ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.endDate && (
+                      <p className="mt-1 text-xs text-red-600">{errors.endDate}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -289,9 +432,13 @@ const CreateEvent = () => {
                       name="time"
                       value={formData.time}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.time ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.time && (
+                      <p className="mt-1 text-xs text-red-600">{errors.time}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -304,9 +451,13 @@ const CreateEvent = () => {
                       name="endTime"
                       value={formData.endTime}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.endTime ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.endTime && (
+                      <p className="mt-1 text-xs text-red-600">{errors.endTime}</p>
+                    )}
                   </div>
                 </div>
 
@@ -320,7 +471,7 @@ const CreateEvent = () => {
                   </div>
                 )}
 
-                {/* Location, Category, Package - 3 columns on desktop, 1 on mobile */}
+                {/* Location and Category */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
@@ -332,10 +483,16 @@ const CreateEvent = () => {
                       name="location"
                       value={formData.location}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.location ? 'border-red-300' : 'border-gray-300'
+                      }`}
                       placeholder="Enter event location"
+                      maxLength="200"
                     />
+                    {errors.location && (
+                      <p className="mt-1 text-xs text-red-600">{errors.location}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and commas only</p>
                   </div>
 
                   <div>
@@ -347,8 +504,9 @@ const CreateEvent = () => {
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.category ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     >
                       {categories.map(category => (
                         <option key={category.value} value={category.value}>
@@ -356,7 +514,31 @@ const CreateEvent = () => {
                         </option>
                       ))}
                     </select>
+                    {errors.category && (
+                      <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+                    )}
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="locationUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                    Location URL
+                  </label>
+                  <input
+                    type="url"
+                    id="locationUrl"
+                    name="locationUrl"
+                    value={formData.locationUrl}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                      errors.locationUrl ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Paste the Google Maps URL"
+                  />
+                  {errors.locationUrl && (
+                    <p className="mt-1 text-xs text-red-600">{errors.locationUrl}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Optional Google Maps link for the event location</p>
                 </div>
 
                 {/* Package and File Upload - 2 columns on desktop, 1 on mobile */}
@@ -370,8 +552,9 @@ const CreateEvent = () => {
                       name="package"
                       value={formData.package}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.package ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     >
                       {packages.map(pkg => (
                         <option key={pkg.value} value={pkg.value}>
@@ -379,6 +562,9 @@ const CreateEvent = () => {
                         </option>
                       ))}
                     </select>
+                    {errors.package && (
+                      <p className="mt-1 text-xs text-red-600">{errors.package}</p>
+                    )}
                   </div>
 
                   <div>
@@ -386,7 +572,9 @@ const CreateEvent = () => {
                       Guest List (Excel File) *
                     </label>
                     <div className="space-y-2">
-                      <label htmlFor="excelFile" className="cursor-pointer bg-blue-50 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-100 transition duration-300 flex items-center text-sm w-full justify-center">
+                      <label htmlFor="excelFile" className={`cursor-pointer px-3 py-2 rounded-lg transition duration-300 flex items-center text-sm w-full justify-center ${
+                        errors.excelFile ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -399,8 +587,11 @@ const CreateEvent = () => {
                         onChange={handleExcelChange}
                         accept=".xlsx,.xls,.csv"
                         className="hidden"
-                        required
                       />
+                      
+                      {errors.excelFile && (
+                        <p className="mt-1 text-xs text-red-600">{errors.excelFile}</p>
+                      )}
                       
                       {formData.fileName && (
                         <div className={`p-2 rounded-lg ${uploadStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-50 text-gray-700 border border-gray-200'}`}>
@@ -426,11 +617,17 @@ const CreateEvent = () => {
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
-                    required
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-vertical"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-vertical ${
+                      errors.description ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Describe your event..."
+                    maxLength="500"
                   ></textarea>
+                  {errors.description && (
+                    <p className="mt-1 text-xs text-red-600">{errors.description}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and & symbol only</p>
                 </div>
               </div>
 
@@ -466,8 +663,6 @@ const CreateEvent = () => {
               </div>
             </form>
           </div>
-
-          
         </div>
       </div>
     </Layout>

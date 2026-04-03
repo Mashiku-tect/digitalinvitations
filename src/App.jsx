@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { isTokenValid } from './utils/checktoken';
+import { setLogoutHandler } from "./utils/axiosInterceptor";
+import useInactivityLogout from "./hooks/InactivityLogout";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
@@ -31,6 +35,7 @@ import NotFound from './components/pages/NotFound';
 import Forbidden from './components/pages/Forbidden';
 import Unauthorized from './components/pages/Unauthorized';
 import ResetPassword from './components/auth/ResetPassword';
+import SendThankYouMessage from './components/pages/SendThankYouMessage';
 
 import './App.css';
 
@@ -38,6 +43,11 @@ function AppWrapper() {
   return (
     <Router>
       <App />
+       <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar
+        />
     </Router>
   );
 }
@@ -47,11 +57,25 @@ function App() {
   const navigate = useNavigate();
 
   const handleRegister = () => {
-    console.log('User registered!');
+    //console.log('User registered!');
   };
 
+  
+
+   const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login"; // or use navigate()
+   // console.log("User logged out due to inactivity.");
+  };
+
+  //logout after inactivity
+  useInactivityLogout({
+    timeout: 8 * 60 * 1000, // 8 minutes
+    onLogout: handleLogout
+  });
+
  useEffect(() => {
-  const publicPaths = ['/login', '/register', '/forgot-password','/reset-password'];
+  const publicPaths = ['/login', '/forgot-password','/reset-password','/newcontract'];
   const currentPath = window.location.pathname;
 
   if (!publicPaths.includes(currentPath)) {
@@ -64,6 +88,10 @@ function App() {
 
   setIsLoading(false);
 }, [navigate]);
+
+useEffect(() => {
+  setLogoutHandler(handleLogout);
+}, []);
 
 
   if (isLoading) {
@@ -86,7 +114,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/register" element={<Register onRegister={handleRegister} />} />
+        <Route path="/newcontract" element={<Register onRegister={handleRegister} />} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/events" element={<ProtectedRoute><AllEvents /></ProtectedRoute>} />
@@ -117,7 +145,9 @@ function App() {
         <Route path="/403" element={<ProtectedRoute><Forbidden /></ProtectedRoute>} />
         <Route path="/401" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
 
-        
+        {/* send thank you message */}
+        <Route path="/invitations/thank-you" element={<ProtectedRoute><SendThankYouMessage /></ProtectedRoute>} />
+
       </Routes>
     </div>
   );

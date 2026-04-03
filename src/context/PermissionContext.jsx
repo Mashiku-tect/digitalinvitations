@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import api from "../utils/api";
 
 const PermissionsContext = createContext({
   permissions: [],
@@ -16,19 +17,21 @@ export const PermissionsProvider = ({ children }) => {
   // Fetch permissions from backend
   const fetchPermissions = async () => {
     const token = localStorage.getItem('token');
+    //console.log('Token is',token)
     if (!token) {
       setPermissions([]);
       return [];
     }
-
+//console.log('Token was there trying to fetch permissions')
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/allen', {
+      const response = await api.get('/api/allen', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
 
-      console.log("Fetched permissions:", response.data.permissions);
+      //console.log("Fetched permissions:", response.data.permissions);
+      //console.log('response',response.data)
       const fetched = response.data.permissions || [];
       setPermissions(fetched);
       setError(null);
@@ -51,9 +54,10 @@ export const PermissionsProvider = ({ children }) => {
   // Auto-fetch permissions when token changes
   useEffect(() => {
     const token = localStorage.getItem('token');
+   // console.log('Token was obtained')
     if (token) fetchPermissions();
     else setPermissions([]);
-  }, [localStorage.getItem('token')]);
+  }, []);
 
   return (
     <PermissionsContext.Provider

@@ -7,6 +7,7 @@ import { saveAs } from "file-saver";
 import Layout from "../layout/Layout";
 import axios from "axios";
 import { ToastContainer, toast } from 'react-toastify';
+import api from "../../utils/api";
 
 const fonts = [
   // Basic system fonts
@@ -54,9 +55,6 @@ const CardDesigner = () => {
   const [image, setImage] = useState(null);
   const [imageFileType, setImageFileType] = useState(null);
   const [imageSize, setImageSize] = useState({ width: 800, height: 600 });
-  const [qrUrlTemplate, setQrUrlTemplate] = useState(
-    "https://example.com/invite?guestId={GUEST_ID}&eventId={EVENT_ID}&token={QR_TOKEN}"
-  );
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState("");
   const [guests, setGuests] = useState([]);
@@ -111,7 +109,7 @@ const CardDesigner = () => {
       setLoadingEvents(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/getallevents', {
+        const response = await api.get('/api/getallevents', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -135,6 +133,11 @@ const CardDesigner = () => {
 
     fetchEvents();
   }, []);
+
+   //update page title
+    useEffect(()=>{
+      document.title="Invitation Template Designer";
+    })
 
   const updatePlaceholder = (id, updates) => {
     setPlaceholders((prev) =>
@@ -187,7 +190,7 @@ const CardDesigner = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/events/eventdetails/${eventId}`, {
+      const response = await api.get(`/api/events/eventdetails/${eventId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -219,13 +222,8 @@ const CardDesigner = () => {
     }
   };
 
-  // --- Generate QR Code URL with guest data ---
-  const generateQrUrl = (guest) => {
-    return qrUrlTemplate
-      .replace("{GUEST_ID}", guest.id)
-      .replace("{EVENT_ID}", guest.eventId)
-      .replace("{QR_TOKEN}", guest.qrcodetoken);
-  };
+  // --- Generate QR code value using guestCode only ---
+  const getGuestQrValue = (guest) => guest?.guestCode || "";
 
   // --- Preview Generator ---
   const generatePreview = async (guestIndex) => {
@@ -257,16 +255,26 @@ const CardDesigner = () => {
         ctx.fillText(guestType, ph.x, ph.y + ph.fontSize);
       }
       if (ph.id === "qr") {
-        // Generate QR code using guest data
-        const qrData = generateQrUrl(guest);
-        const qrDataUrl = await QRCode.toDataURL(
-          qrData,
-          { color: { dark: ph.color, light: "#ffffff" }, width: ph.width, margin: 0 }
-        );
-        const qrImg = new Image();
-        qrImg.src = qrDataUrl;
-        await new Promise((resolve) => (qrImg.onload = resolve));
-        ctx.drawImage(qrImg, ph.x, ph.y, ph.width, ph.height);
+        const qrData = getGuestQrValue(guest);
+        
+        // Create a temporary canvas for QR code with transparent background
+        const qrCanvas = document.createElement("canvas");
+        qrCanvas.width = ph.width;
+        qrCanvas.height = ph.height;
+        const qrCtx = qrCanvas.getContext("2d");
+        
+        // Generate QR code with transparent background
+        await QRCode.toCanvas(qrCanvas, qrData, {
+          width: ph.width,
+          margin: 0,
+          color: {
+            dark: ph.color,
+            light: "#00000000" // Transparent background
+          }
+        });
+        
+        // Draw the QR code onto the main canvas
+        ctx.drawImage(qrCanvas, ph.x, ph.y, ph.width, ph.height);
       }
     }
 
@@ -306,8 +314,8 @@ formData.append('card', blob, `${guest.firstName}_${guest.lastName}_${guest.id}.
         formData.append('guestId', guest.id);
         
         // Upload card to server
-        const response = await axios.post(
-          'http://localhost:5000/api/events/uploadcard',
+        const response = await api.post(
+          '/api/events/uploadcard',
           formData,
           {
             headers: {
@@ -396,14 +404,27 @@ formData.append('card', blob, `${guest.firstName}_${guest.lastName}_${guest.id}.
                 className="w-full p-2 border border-gray-300 rounded-lg cursor-pointer hover:border-purple-500"
                 disabled={loadingEvents}
               >
-                         <option value="">-- Select an Event --</option>
+  <option value="">-- Select an Event --</option>
 {events
-  .filter(event => event.isInitialMessageSent === false)
+  .filter(event => {
+    const eventDay = new Date(event.eventDate);
+    const today = new Date();
+    
+    // Remove time from today's date to compare only the date
+    today.setHours(0, 0, 0, 0);
+
+    return (
+      event.isInitialMessageSent === false &&
+      event.cancelled === false &&
+      eventDay >= today
+    );
+  })
   .map(event => (
     <option key={event.id} value={event.id}>
       {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
     </option>
   ))}
+
               </select>
               {loadingEvents && (
                 <p className="text-sm text-gray-500 mt-1">Loading events...</p>

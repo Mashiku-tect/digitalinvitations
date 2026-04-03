@@ -57,15 +57,17 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
     ].filter(Boolean), // remove empty items
   }] : []),
 
-  // Invitations
-  ...((canGenerateInvitations || canSendInvitations) ? [{
-    title: "Invitations",
-    icon: <Send size={20} />,
-    children: [
-      ...(canGenerateInvitations ? [{ title: "Generate Invitations", path: "/invitations/generate" }] : []),
-      ...(canSendInvitations ? [{ title: "Send Invitations", path: "/invitations/send" }] : []),
-    ].filter(Boolean),
-  }] : []),
+  
+// Invitations
+...((canGenerateInvitations || canSendInvitations) ? [{
+  title: "Invitations",
+  icon: <Send size={20} />,
+  children: [
+    ...(canGenerateInvitations ? [{ title: "Generate Invitations", path: "/invitations/generate" }] : []),
+    ...(canSendInvitations ? [{ title: "Send Invitations", path: "/invitations/send" }] : []),
+    { title: "Send Thank You Message", path: "/invitations/thank-you" }, // Add this new submenu
+  ].filter(Boolean),
+}] : []),
 
   // QR Check-in
   ...(canViewQRCheckIn ? [{

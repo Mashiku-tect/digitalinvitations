@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
+import api from "../../utils/api";
+
+api.get("/events");
+
 
 const SendInvitations = () => {
   const navigate = useNavigate();
@@ -21,12 +25,12 @@ const SendInvitations = () => {
       setLoadingEvents(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/getallevents', {
+        const response = await api.get('/api/getallevents', {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        //console.log("events data",response.data.events)
+       // console.log("events data",response.data.events)
         setEvents(response.data.events || []);
       } catch (error) {
         const errormessage=error.response.data.message;
@@ -48,6 +52,12 @@ const SendInvitations = () => {
     fetchEvents();
   }, []);
 
+
+   //update page title
+    useEffect(()=>{
+      document.title="Send Invitations";
+    })
+
   // Send invitations
   const sendInvitations = async () => {
     if (!selectedEvent) {
@@ -59,11 +69,12 @@ const SendInvitations = () => {
     setSendProgress(0);
     
     try {
+        //localStorage.removeItem('token');
       const token = localStorage.getItem('token');
       
       // Call the backend API to send invitations
-      const response = await axios.post(
-        'http://localhost:5000/api/invitations/send/SMS',
+      const response = await api.post(
+        '/api/invitations/send/SMS',
         {
           eventId: selectedEvent,
         },
@@ -133,14 +144,28 @@ const SendInvitations = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   disabled={loadingEvents}
                 >
-                  <option value="">-- Select an Event --</option>
+<option value="">-- Select an Event --</option>
 {events
-  .filter(event => event.isInitialMessageSent === false)
+  .filter(event => {
+    const eventDay = new Date(event.eventDate);
+    const today = new Date();
+    
+    // Remove time from today's date to compare only the date
+    today.setHours(0, 0, 0, 0);
+
+    return (
+      event.isInitialMessageSent === false &&
+      event.cancelled === false &&
+      eventDay >= today
+    );
+  })
   .map(event => (
     <option key={event.id} value={event.id}>
       {event.eventName} - {new Date(event.eventDate).toLocaleDateString()}
     </option>
   ))}
+
+
 
                 </select>
                 {loadingEvents && (

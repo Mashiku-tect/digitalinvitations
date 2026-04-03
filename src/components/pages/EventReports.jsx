@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from 'react-router-dom';
 import Layout from '../layout/Layout';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import api from "../../utils/api";
 
 const EventReport = () => {
   const [report, setReport] = useState(null);
@@ -11,10 +14,18 @@ const EventReport = () => {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/events/reports/${id}`);
+         const token = localStorage.getItem('token');
+        const res = await api.get(`/api/events/reports/${id}`,{
+          headers:{
+            Authorization:`Bearer ${token}`
+          }
+        });
         setReport(res.data);
+        //console.log('returned data',res.data);
       } catch (err) {
-        console.error("Error fetching report:", err);
+        //console.error("Error fetching report:", err);
+        const errormessage=err.response && err.response.data && err.response.data.message ? err.response.data.message : 'Error fetching report';
+        toast.error(errormessage);
       } finally {
         setLoading(false);
       }
@@ -22,11 +33,22 @@ const EventReport = () => {
     fetchReport();
   }, [id]);
 
+  //update page title to event report name
+  useEffect(()=>{
+    if(report && report.eventName){
+      document.title=`${report.eventName} - Event Report`;
+    }
+  })
   const handleDownloadPDF = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/events/report/pdf/${id}`,
-        { responseType: "blob" }
+       const token = localStorage.getItem('token');
+      const res = await api.get(
+        `/api/events/report/pdf/${id}`,
+        { responseType: "blob" },{
+          headers:{
+            Authorization:`Bearer ${token}`
+          }
+        }
       );
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -36,7 +58,9 @@ const EventReport = () => {
       document.body.appendChild(link);
       link.click();
     } catch (err) {
-      console.error("Error downloading PDF:", err);
+     // console.error("Error downloading PDF:", err);
+     const errormessage=err.response && err.response.data && err.response.data.message ? err.response.data.message : 'Error downloading PDF';
+     toast.error(errormessage);
     }
   };
 
@@ -70,6 +94,7 @@ const EventReport = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 md:px-8">
+         <ToastContainer position="top-right" autoClose={3000} />
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-white rounded-2xl shadow-lg p-6">
@@ -249,7 +274,7 @@ const EventReport = () => {
               <td className="py-3">
                 <span
                   className={`px-2 py-1 text-xs rounded-full ${
-                    guest.rsvp === "Yes"
+                    guest.rsvp === "Accepted"
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
                   }`}

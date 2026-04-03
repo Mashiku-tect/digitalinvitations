@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import api from "../../utils/api";
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -29,8 +30,8 @@ const ResetPassword = () => {
     // If we have token and email, verify them
     const verifyToken = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/verify-reset-token?email=${email}&token=${token}`
+        const response = await api.get(
+          `/api/verify-reset-token?email=${email}&token=${token}`
         );
 
         if (response.data.valid) {
@@ -61,7 +62,7 @@ const ResetPassword = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await axios.post("http://localhost:5000/api/reset-password", {
+      const response = await api.post("/api/reset-password", {
         email,
         token,
         newPassword,

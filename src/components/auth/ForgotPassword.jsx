@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import api from "../../utils/api";
 
 
 const ForgotPassword = () => {
@@ -30,7 +31,7 @@ const handleSubmit = async (e) => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:5000/api/request-reset", {
+      const response = await api.post("/api/request-reset", {
         email,
       });
 

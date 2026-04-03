@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
+import api from "../../utils/api";
 
 const ScanPermissions = () => {
   const { id } = useParams();
@@ -16,23 +18,25 @@ const ScanPermissions = () => {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
+    //document.title = "Scan Permissions - eCards";
     const fetchData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
         
         // Fetch event details
-        const eventResponse = await axios.get(`http://localhost:5000/api/events/eventdetails/${id}`, {
+        const eventResponse = await api.get(`/api/events/eventdetails/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setEvent(eventResponse.data.event);
+        //console.log("Event Details",eventResponse.data.event);
         
         // Fetch current scanners and all users
         await fetchScanPermissions();
         await fetchAllUsers();
         
       } catch (error) {
-        console.error('Error fetching data:', error);
+       // console.error('Error fetching data:', error);
         alert('Failed to load data');
       } finally {
         setLoading(false);
@@ -42,17 +46,24 @@ const ScanPermissions = () => {
     fetchData();
   }, [id]);
 
+  //update the page title to be the event Name
+  useEffect(()=>{
+    if(event && event.eventName){
+      document.title=`Scan Permissions - ${event.eventName}`;
+    }
+  })
+
   const fetchScanPermissions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/events/${id}/scan-permissions`, {
+      const response = await api.get(`/api/events/${id}/scan-permissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      console.log("Scanners",response.data.scanners)
+      //console.log("Scanners",response.data.scanners)
       setScanners(response.data.scanners || []);
     } catch (error) {
-      console.error('Error fetching scan permissions:', error);
+     // console.error('Error fetching scan permissions:', error);
     }
   };
 
@@ -60,13 +71,13 @@ const ScanPermissions = () => {
     try {
       setLoadingUsers(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/myusers', {
+      const response = await api.get('/api/myusers', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAllUsers(response.data.users || []);
       setFilteredUsers(response.data.users || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+     // console.error('Error fetching users:', error);
     } finally {
       setLoadingUsers(false);
     }
@@ -95,20 +106,20 @@ const ScanPermissions = () => {
     try {
       setUpdating(true);
       const token = localStorage.getItem('token');
-      const response = await axios.post(`http://localhost:5000/api/events/${id}/scan-permissions`, 
+      const response = await api.post(`/api/events/${id}/scan-permissions`, 
         { tenant_id: userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if(response.data.success){
-        alert(response.data.message);
-      }
+      const responsemessage=response.data?.message;
+       toast.success(responsemessage);
+      // if(response.data.success){
+      //   alert(response.data.message);
+      // }
       await fetchScanPermissions();
     } catch (error) {
       if (error.response && error.response.data) {
-        const { success, message } = error.response.data;
-        if (success === false) {
-          alert(message);
-        }
+      const errormessage=error.response?.data?.message;
+      toast.error(errormessage);
       } else {
         alert('An unexpected error occurred.');
       }
@@ -122,19 +133,23 @@ const ScanPermissions = () => {
       try {
         setUpdating(true);
         const token = localStorage.getItem('token');
-        const response = await axios.delete(`http://localhost:5000/api/events/${id}/scan-permissions/${permissionId}`, {
+        const response = await api.delete(`/api/events/${id}/scan-permissions/${permissionId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if(response.data.success){
-          alert(response.data.message);
-        }
+        // if(response.data.success){
+        //   alert(response.data.message);
+        // }
+          const responsemessage=response.data?.message;
+       toast.success(responsemessage);
         await fetchScanPermissions();
       } catch (error) {
-        console.error('Error removing scanner:', error);
+        //console.error('Error removing scanner:', error);
         if (error.response && error.response.data && error.response.data.message) {
+          toast.error(error.response.data.message);
           alert(error.response.data.message);
         } else {
-          alert('An unexpected error occurred.');
+          //alert('An unexpected error occurred.');
+            toast.error('An unexpected error occurred.');
         }
       } finally {
         setUpdating(false);
@@ -175,6 +190,7 @@ const ScanPermissions = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 md:px-6">
+        <ToastContainer position="top-right" autoClose={3000} />
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">

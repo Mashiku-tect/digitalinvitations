@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
+import api from "../../utils/api";
 
 const CheckInLogs = () => {
   const navigate=useNavigate();
@@ -21,6 +22,11 @@ const CheckInLogs = () => {
 
     const [hasAccess, setHasAccess] = useState(null); // <-- NEW
 
+     //update page title
+      useEffect(()=>{
+        document.title="Check In Logs";
+      })
+
     
 
   // Fetch events from backend
@@ -28,7 +34,7 @@ const CheckInLogs = () => {
     const fetchEvents = async () => {
       try {
         const token = localStorage.getItem("token");
-       const res = await axios.get("http://localhost:5000/api/getallevents", {
+       const res = await api.get("/api/getallevents", {
     headers: {
       Authorization: `Bearer ${token}`, // 👈 send token here
     },
@@ -49,7 +55,7 @@ const CheckInLogs = () => {
       } catch (error) {
         if(error.response && error.response.status === 403) {
           setHasAccess(false);}
-        console.error('Failed to fetch events:', error);
+      //  console.error('Failed to fetch events:', error);
       }
     };
     fetchEvents();
@@ -78,16 +84,16 @@ const CheckInLogs = () => {
   const handleEventSelect = async (event) => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/events/checkins/${event.id}`,{
+      const res = await api.get(`/api/events/checkins/${event.id}`,{
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`, // 👈 send token here
+          Authorization: `Bearer ${localStorage.getItem("token")}`, //  send token here
         },
-      }); // 👈 fetch check-ins
+      }); //  fetch check-ins
 
-      console.log(res.data);
+   // console.log(res.data);
       setSelectedEvent({ ...event, checkIns: res.data });
     } catch (error) {
-      console.error('Failed to fetch check-ins:', error);
+      //console.error('Failed to fetch check-ins:', error);
     } finally {
       setIsLoading(false);
     }
@@ -336,8 +342,8 @@ const CheckInLogCard = ({ log, formatTime }) => {
 
   return (
     <li className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors duration-150 border border-gray-100 rounded-md">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
             <span className="text-blue-800 font-medium">
               {log.firstName.split(' ').map(n => n[0]).join('')}
@@ -346,6 +352,7 @@ const CheckInLogCard = ({ log, formatTime }) => {
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">{log.firstName + " " + log.lastName}</div>
             <div className="text-sm text-gray-500">{log.phone}</div>
+            <div className="text-xs text-gray-500">Guest Code: {log.guestCode || 'N/A'}</div>
           </div>
         </div>
         <div className="text-right">

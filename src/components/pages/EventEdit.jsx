@@ -4,6 +4,7 @@ import Layout from '../layout/Layout';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import api from "../../utils/api";
 
 const EditEvent = () => {
   const { id } = useParams();
@@ -17,15 +18,17 @@ const EditEvent = () => {
     location: '',
     description: '',
     category: 'personal',
-    package: 'Basic', // Added package field
+    package: 'Basic',
     excelFile: null,
     fileName: ''
   });
 
+  const [errors, setErrors] = useState({});
   const [uploadStatus, setUploadStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
   const [hasAccess, setHasAccess] = useState(null);
+  const [eventName, setEventName] = useState('');
 
   const categories = [
     { value: 'personal', label: 'Personal' },
@@ -35,7 +38,7 @@ const EditEvent = () => {
     { value: 'other', label: 'Other' }
   ];
 
-  const packages = [ // Added packages array
+  const packages = [
     { value: 'Basic', label: 'Basic' },
     { value: 'Standard', label: 'Standard' },
     { value: 'Pro', label: 'Pro' },
@@ -46,14 +49,14 @@ const EditEvent = () => {
     const fetchEvent = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:5000/api/events/eventdetails/${id}`, {
+        const response = await api.get(`/api/events/eventdetails/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         
         const event = response.data.event;
-       // console.log("event dataa", response.data.event);
+        event && setEventName(event.eventName);
         setFormData({
           name: event.eventName,
           date: event.eventDate.split('T')[0],
@@ -63,7 +66,7 @@ const EditEvent = () => {
           location: event.location,
           description: event.description,
           category: event.category,
-          package: event.packagename || 'Basic', // Set package from event data
+          package: event.packagename || 'Basic',
           excelFile: null,
           fileName: ''
         });
@@ -73,7 +76,6 @@ const EditEvent = () => {
         if (error.response && error.response.status === 403) {
           setHasAccess(false);
         }
-        console.error('Error fetching event:', error);
         toast.error('Failed to load event data');
       } finally {
         setIsLoadingEvent(false);
@@ -89,12 +91,48 @@ const EditEvent = () => {
     }
   }, [hasAccess, navigate]);
 
+  // Update page title to event Name
+  useEffect(() => {
+    if (eventName) {
+      document.title = `Edit Event - ${eventName}`;
+    }
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Apply input restrictions for name (event name)
+    if (name === 'name') {
+      // Allow letters, spaces, numbers, and '&' only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s&]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    }
+    // Apply input restrictions for location
+    else if (name === 'location') {
+      // Allow letters, spaces, and comma only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s,]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    }
+    // Apply input restrictions for description
+    else if (name === 'description') {
+      // Allow letters, spaces, numbers, and '&' only
+      const allowedChars = value.replace(/[^a-zA-Z0-9\s&]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: allowedChars
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
 
     // Auto-adjust end date if it's before start date
     if (name === 'date' && value > formData.endDate) {
@@ -102,6 +140,11 @@ const EditEvent = () => {
         ...prev,
         endDate: value
       }));
+    }
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
     }
   };
 
@@ -128,16 +171,95 @@ const EditEvent = () => {
   };
 
   const validateForm = () => {
+    const newErrors = {};
+    
+    // Event Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Event name is required';
+    } else if (!/^[a-zA-Z0-9\s&]+$/.test(formData.name)) {
+      newErrors.name = 'Event name can only contain letters, numbers, spaces, and & symbol';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Event name must be at least 3 characters';
+    } else if (formData.name.trim().length > 100) {
+      newErrors.name = 'Event name cannot exceed 100 characters';
+    }
+    
+    // Location validation
+    if (!formData.location.trim()) {
+      newErrors.location = 'Location is required';
+    } else if (!/^[a-zA-Z0-9\s,]+$/.test(formData.location)) {
+      newErrors.location = 'Location can only contain letters, numbers, spaces, and commas';
+    } else if (formData.location.trim().length < 3) {
+      newErrors.location = 'Location must be at least 3 characters';
+    } else if (formData.location.trim().length > 200) {
+      newErrors.location = 'Location cannot exceed 200 characters';
+    }
+    
+    // Description validation
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required';
+    } else if (!/^[a-zA-Z0-9\s&]+$/.test(formData.description)) {
+      newErrors.description = 'Description can only contain letters, numbers, spaces, and & symbol';
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = 'Description must be at least 10 characters';
+    } else if (formData.description.trim().length > 500) {
+      newErrors.description = 'Description cannot exceed 500 characters';
+    }
+    
+    // Date validations
+    if (!formData.date) {
+      newErrors.date = 'Start date is required';
+    }
+    
+    if (!formData.endDate) {
+      newErrors.endDate = 'End date is required';
+    }
+    
+    // Time validations
+    if (!formData.time) {
+      newErrors.time = 'Start time is required';
+    }
+    
+    if (!formData.endTime) {
+      newErrors.endTime = 'End time is required';
+    }
+    
+    // Category validation
+    if (!formData.category) {
+      newErrors.category = 'Category is required';
+    }
+    
+    // Package validation
+    if (!formData.package) {
+      newErrors.package = 'Package type is required';
+    }
+    
+    setErrors(newErrors);
+    
+    // If there are errors, don't proceed with time validation
+    if (Object.keys(newErrors).length > 0) {
+      return false;
+    }
+    
+    // Validate event times
+    const timeValidation = validateEventTimes();
+    if (!timeValidation.isValid) {
+      toast.error(timeValidation.message);
+      return false;
+    }
+    
+    return true;
+  };
+
+  const validateEventTimes = () => {
     // Check if end date is before start date
     if (formData.endDate && formData.date && formData.endDate < formData.date) {
-      toast.error('End date cannot be before start date');
-      return false;
+      return { isValid: false, message: 'End date cannot be before start date' };
     }
 
     // If same day, check if end time is after start time
     if (formData.endTime && formData.time && formData.date === formData.endDate && formData.endTime <= formData.time) {
-      toast.error('End time must be after start time when events are on the same day');
-      return false;
+      return { isValid: false, message: 'End time must be after start time when events are on the same day' };
     }
 
     // Check if event duration is reasonable (not more than 30 days)
@@ -146,17 +268,24 @@ const EditEvent = () => {
       const endDate = new Date(formData.endDate);
       const durationInDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
       if (durationInDays > 30) {
-        toast.error('Event duration seems too long. Please check your dates.');
-        return false;
+        return { isValid: false, message: 'Event duration cannot exceed 30 days' };
       }
     }
 
-    return true;
+    // Check if start date/time is in the past
+    const now = new Date();
+    const startDateTime = new Date(`${formData.date}T${formData.time}`);
+    if (startDateTime < now) {
+      return { isValid: false, message: 'Event start time cannot be in the past' };
+    }
+
+    return { isValid: true, message: '' };
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate form
     if (!validateForm()) {
       return;
     }
@@ -170,9 +299,9 @@ const EditEvent = () => {
         return;
       }
     } else {
-      // Force the user to upload a file
-      toast.error('Please upload an Excel file to update the guest list');
-      return; 
+      // Force the user to upload a file (Optional for edit, but you can keep this if needed)
+      // toast.error('Please upload an Excel file to update the guest list');
+      // return;
     }
 
     setIsSubmitting(true);
@@ -189,15 +318,15 @@ const EditEvent = () => {
       data.append("location", formData.location);
       data.append("description", formData.description);
       data.append("category", formData.category);
-      data.append("package", formData.package); // Added package to form data
+      data.append("package", formData.package);
       
       // Only append the file if a new one was selected
       if (formData.excelFile) {
         data.append("excelFile", formData.excelFile);
       }
 
-      const res = await axios.put(
-        `http://localhost:5000/api/events/update/${id}`,
+      const res = await api.put(
+        `/api/events/update/${id}`,
         data,
         {
           headers: {
@@ -213,30 +342,40 @@ const EditEvent = () => {
         navigate(`/viewevents/${id}`);
       }, 1500);
     } catch (err) {
-      console.error(err.response.data.message);
-      alert(err.response.data.message);
+      //console.error(err.response?.data?.message || err.message);
+      toast.error(err.response?.data?.message || 'Error updating event');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getEventDuration = () => {
-    if (!formData.date || !formData.endDate) return '';
+  const calculateEventDuration = () => {
+    if (!formData.date || !formData.endDate || !formData.time || !formData.endTime) {
+      return '';
+    }
+
+    const startDateTime = new Date(`${formData.date}T${formData.time}`);
+    const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
     
-    const startDate = new Date(formData.date);
-    const endDate = new Date(formData.endDate);
-    const durationInDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
-    
-    if (durationInDays === 0) {
-      return 'Single-day event';
-    } else if (durationInDays === 1) {
-      return '1 day';
+    const durationMs = endDateTime - startDateTime;
+    const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+    const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (durationHours < 1) {
+      return `${durationMinutes} minutes`;
+    } else if (durationHours === 1 && durationMinutes === 0) {
+      return '1 hour';
+    } else if (durationHours === 1) {
+      return `1 hour ${durationMinutes} minutes`;
+    } else if (durationMinutes === 0) {
+      return `${durationHours} hours`;
     } else {
-      return `${durationInDays} days`;
+      return `${durationHours} hours ${durationMinutes} minutes`;
     }
   };
 
-  // Only show loading for initial event data fetch, not for form submission
+  const eventDuration = calculateEventDuration();
+
   if (isLoadingEvent || hasAccess === null) {
     return (
       <Layout>
@@ -292,10 +431,16 @@ const EditEvent = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                      errors.name ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Enter event name"
+                    maxLength="100"
                   />
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and & symbol only</p>
                 </div>
 
                 {/* Start Date, End Date, Start Time, End Time - Four columns on desktop, stacked on mobile */}
@@ -310,10 +455,14 @@ const EditEvent = () => {
                       name="date"
                       value={formData.date}
                       onChange={handleChange}
-                      required
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.date ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.date && (
+                      <p className="mt-1 text-xs text-red-600">{errors.date}</p>
+                    )}
                   </div>
 
                   <div>
@@ -326,10 +475,14 @@ const EditEvent = () => {
                       name="endDate"
                       value={formData.endDate}
                       onChange={handleChange}
-                      required
                       min={formData.date}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.endDate ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.endDate && (
+                      <p className="mt-1 text-xs text-red-600">{errors.endDate}</p>
+                    )}
                   </div>
 
                   <div>
@@ -342,9 +495,13 @@ const EditEvent = () => {
                       name="time"
                       value={formData.time}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.time ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.time && (
+                      <p className="mt-1 text-xs text-red-600">{errors.time}</p>
+                    )}
                   </div>
 
                   <div>
@@ -357,21 +514,23 @@ const EditEvent = () => {
                       name="endTime"
                       value={formData.endTime}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.endTime ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.endTime && (
+                      <p className="mt-1 text-xs text-red-600">{errors.endTime}</p>
+                    )}
                   </div>
                 </div>
 
                 {/* Duration Display */}
-                {formData.date && formData.endDate && (
+                {eventDuration && (
                   <div className="bg-blue-50 border border-blue-200 rounded p-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-blue-800">
-                        {formData.date === formData.endDate ? 'Single-day Event' : 'Multi-day Event'}
-                      </span>
+                      <span className="text-sm font-medium text-blue-800">Event Duration:</span>
                       <span className="text-sm text-blue-600 font-semibold">
-                        {getEventDuration()}
+                        {eventDuration}
                       </span>
                     </div>
                   </div>
@@ -389,10 +548,16 @@ const EditEvent = () => {
                       name="location"
                       value={formData.location}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.location ? 'border-red-300' : 'border-gray-300'
+                      }`}
                       placeholder="Enter event location"
+                      maxLength="200"
                     />
+                    {errors.location && (
+                      <p className="mt-1 text-xs text-red-600">{errors.location}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and commas only</p>
                   </div>
 
                   <div>
@@ -404,8 +569,9 @@ const EditEvent = () => {
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.category ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     >
                       {categories.map(category => (
                         <option key={category.value} value={category.value}>
@@ -413,9 +579,12 @@ const EditEvent = () => {
                         </option>
                       ))}
                     </select>
+                    {errors.category && (
+                      <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+                    )}
                   </div>
 
-                  {/* Package Selection - Added this section */}
+                  {/* Package Selection */}
                   <div>
                     <label htmlFor="package" className="block text-sm font-medium text-gray-700 mb-1">
                       Package *
@@ -425,8 +594,9 @@ const EditEvent = () => {
                       name="package"
                       value={formData.package}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        errors.package ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     >
                       {packages.map(pkg => (
                         <option key={pkg.value} value={pkg.value}>
@@ -434,6 +604,9 @@ const EditEvent = () => {
                         </option>
                       ))}
                     </select>
+                    {errors.package && (
+                      <p className="mt-1 text-xs text-red-600">{errors.package}</p>
+                    )}
                   </div>
                 </div>
 
@@ -443,7 +616,9 @@ const EditEvent = () => {
                     Update Guest List (Optional)
                   </label>
                   <div className="space-y-2">
-                    <label htmlFor="excelFile" className="cursor-pointer bg-blue-100 text-blue-700 px-3 py-2 rounded hover:bg-blue-200 transition duration-300 flex items-center justify-center text-sm">
+                    <label htmlFor="excelFile" className={`cursor-pointer px-3 py-2 rounded hover:bg-blue-200 transition duration-300 flex items-center justify-center text-sm ${
+                      errors.excelFile ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
@@ -457,6 +632,10 @@ const EditEvent = () => {
                       accept=".xlsx,.xls,.csv"
                       className="hidden"
                     />
+                    
+                    {errors.excelFile && (
+                      <p className="mt-1 text-xs text-red-600">{errors.excelFile}</p>
+                    )}
                     
                     {formData.fileName && (
                       <div className={`p-2 rounded text-xs ${uploadStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
@@ -486,11 +665,17 @@ const EditEvent = () => {
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
-                    required
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                      errors.description ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Describe your event..."
+                    maxLength="500"
                   ></textarea>
+                  {errors.description && (
+                    <p className="mt-1 text-xs text-red-600">{errors.description}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Letters, numbers, spaces, and & symbol only</p>
                 </div>
               </div>
 
