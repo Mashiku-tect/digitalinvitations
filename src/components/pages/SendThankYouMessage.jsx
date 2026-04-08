@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+//import { toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import { Search, Send, Loader } from 'lucide-react';
 //import api from '../../services/api'; // Adjust this import based on your API service
 import Layout from '../layout/Layout';
@@ -81,7 +82,7 @@ const SendThankYouMessage = () => {
       });
 
       const responsemessage= response.data.message || 'Thank you message sent successfully!';
-      //console.log('response message is',responsemessage)
+      console.log('response message is',responsemessage)
       toast.success(responsemessage);
      
       
@@ -90,7 +91,7 @@ const SendThankYouMessage = () => {
       setSelectedEvent(null);
       setSearchTerm('');
     } catch (error) {
-     // console.error('Error sending thank you message:', error);
+      console.error('Error sending thank you message:', error);
       toast.error('Failed to send thank you message. Please try again.');
     } finally {
       setSending(false);
@@ -100,6 +101,7 @@ const SendThankYouMessage = () => {
   return (
      <Layout>
     <div className="max-w-4xl mx-auto p-6">
+         <ToastContainer position="top-right" autoClose={3000} />
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">
           Send Thank You Message
