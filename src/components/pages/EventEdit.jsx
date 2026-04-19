@@ -16,6 +16,7 @@ const EditEvent = () => {
     time: '',
     endTime: '',
     location: '',
+    locationUrl: '',
     description: '',
     category: 'personal',
     package: 'Basic',
@@ -64,6 +65,7 @@ const EditEvent = () => {
           time: event.eventTime,
           endTime: event.eventEndTime || '',
           location: event.location,
+          locationUrl: event.locationUrl || '',
           description: event.description,
           category: event.category,
           package: event.packagename || 'Basic',
@@ -194,6 +196,14 @@ const EditEvent = () => {
     } else if (formData.location.trim().length > 200) {
       newErrors.location = 'Location cannot exceed 200 characters';
     }
+
+    // Location URL validation
+    if (
+      formData.locationUrl.trim() &&
+      !/^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(formData.locationUrl.trim())
+    ) {
+      newErrors.locationUrl = 'Please enter a valid Google Maps URL';
+    }
     
     // Description validation
     if (!formData.description.trim()) {
@@ -316,6 +326,7 @@ const EditEvent = () => {
       data.append("time", formData.time);
       data.append("endTime", formData.endTime);
       data.append("location", formData.location);
+      data.append("locationUrl", formData.locationUrl);
       data.append("description", formData.description);
       data.append("category", formData.category);
       data.append("package", formData.package);
@@ -608,6 +619,27 @@ const EditEvent = () => {
                       <p className="mt-1 text-xs text-red-600">{errors.package}</p>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="locationUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                    Location URL
+                  </label>
+                  <input
+                    type="url"
+                    id="locationUrl"
+                    name="locationUrl"
+                    value={formData.locationUrl}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                      errors.locationUrl ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Paste the Google Maps URL"
+                  />
+                  {errors.locationUrl && (
+                    <p className="mt-1 text-xs text-red-600">{errors.locationUrl}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Optional Google Maps link for the event location</p>
                 </div>
 
                 {/* Excel File Upload */}

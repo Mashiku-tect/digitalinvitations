@@ -1,7 +1,12 @@
 import axios from "axios";
 
+//const SERVER_URL='https://ecards.mashikutech.co.tz/digitalinvitations';
+
+const SERVER_URL='http://10.104.229.77:5002';
+
+
 const api = axios.create({
-  baseURL: 'https://ecards.mashikutech.co.tz/digitalinvitations',
+  baseURL: SERVER_URL,
   timeout: 10000, // 10 seconds
 });
 
