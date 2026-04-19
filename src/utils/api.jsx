@@ -1,8 +1,8 @@
 import axios from "axios";
 
-//const SERVER_URL='https://ecards.mashikutech.co.tz/digitalinvitations';
+const SERVER_URL='https://ecards.mashikutech.co.tz/digitalinvitations';
 
-const SERVER_URL='http://10.104.229.77:5002';
+//const SERVER_URL='http://10.104.229.77:5002';
 
 
 const api = axios.create({
