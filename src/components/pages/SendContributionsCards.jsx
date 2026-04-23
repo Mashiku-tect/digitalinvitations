@@ -180,10 +180,10 @@ export default function SendContributionPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
+          <button
+  onClick={() => router(-1)}
+  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+>
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
             <div>
