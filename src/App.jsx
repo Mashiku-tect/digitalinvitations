@@ -36,6 +36,13 @@ import Forbidden from './components/pages/Forbidden';
 import Unauthorized from './components/pages/Unauthorized';
 import ResetPassword from './components/auth/ResetPassword';
 import SendThankYouMessage from './components/pages/SendThankYouMessage';
+import CreateContributionPage from './components/pages/CreateContributions';
+import ContributionEventDetailsPage from './components/pages/ContributionsList';
+import ContributionsPage from './components/pages/ContributionsEvents';
+
+import ContributorsCardGenerator from './components/pages/ContributorsCardGenerator';
+
+import SendContributionPage from './components/pages/SendContributionsCards';
 
 import './App.css';
 
@@ -147,6 +154,21 @@ useEffect(() => {
 
         {/* send thank you message */}
         <Route path="/invitations/thank-you" element={<ProtectedRoute><SendThankYouMessage /></ProtectedRoute>} />
+
+        {/* create contribution event */}
+        <Route path="/contributions/create" element={<ProtectedRoute><CreateContributionPage /></ProtectedRoute>} />
+
+        {/* view contributions events */}
+        <Route path="/contributions" element={<ProtectedRoute><ContributionsPage /></ProtectedRoute>} />
+
+        {/* view contributors details */}
+        <Route path="/contributions/:eventId" element={<ProtectedRoute><ContributionEventDetailsPage /></ProtectedRoute>} />
+
+        {/* create contributors card */}
+        <Route path="/contributions/generate" element={<ProtectedRoute><ContributorsCardGenerator /></ProtectedRoute>} />
+
+        {/* send contributions */}
+                <Route path="/contributions/send" element={<ProtectedRoute><SendContributionPage /></ProtectedRoute>} />
 
       </Routes>
     </div>

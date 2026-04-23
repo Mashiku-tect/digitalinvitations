@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+//import { useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import { ToastContainer, toast } from 'react-toastify';
 import api from "../../utils/api";
 
 
 const SendInvitations = () => {
-  const navigate = useNavigate();
-  const [message, setMessage] = useState(`You're invited to our special event! We can't wait to celebrate with you.`);
+  //const navigate = useNavigate();
+  //const [message, setMessage] = useState(`You're invited to our special event! We can't wait to celebrate with you.`);
   const [selectedEvent, setSelectedEvent] = useState('');
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);

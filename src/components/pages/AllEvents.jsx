@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+
 import Layout from '../layout/Layout';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
@@ -74,7 +74,7 @@ const EventManager = () => {
         const res = await api.get("/api/getallevents", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const { totalEvents, activeEvents, completeEvents, events, cancelledEvents } = res.data;
+        const { totalEvents,  events, cancelledEvents } = res.data;
 
         const eventsWithStatus = events.map(event => ({
           ...event,
@@ -84,7 +84,7 @@ const EventManager = () => {
         const upcomingCount = eventsWithStatus.filter(event => event.status === 'upcoming').length;
         const notDealtCount = eventsWithStatus.filter(event => event.status === 'notDealt').length;
         const pastCount = eventsWithStatus.filter(event => event.status === 'past').length;
-        const completedCount = eventsWithStatus.filter(event => event.status === 'completed').length;
+       // const completedCount = eventsWithStatus.filter(event => event.status === 'completed').length;
 
         setStats({
           totalEvents,

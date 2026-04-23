@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
 
+
 import {
   LayoutDashboard,
   CalendarDays,
@@ -15,6 +16,7 @@ import {
   HelpCircle,
   LogOut,
   ChevronRight,
+  HandCoins
 } from "lucide-react";
 
 const Sidebar = ({ isExpanded, setIsExpanded }) => {
@@ -52,10 +54,22 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
     title: "Events",
     icon: <CalendarDays size={20} />,
     children: [
-      { title: "All Events", path: "/events" },
-      ...(canAddEvent ? [{ title: "Create Event", path: "/events/create" }] : []),
+      { title: "All Invitations", path: "/events" },
+      ...(canAddEvent ? [{ title: "Create Invitation", path: "/events/create" }] : []),
     ].filter(Boolean), // remove empty items
   }] : []),
+
+  // Contributions
+{
+  title: "Contributions",
+  icon: <HandCoins size={20} />,
+  children: [
+    { title: "All Contributions", path: "/contributions" },
+    { title: "Create Contribution", path: "/contributions/create" },
+    { title: "Generate Contribution Cards", path: "/contributions/generate" },
+    { title: "Send Contribution", path: "/contributions/send" },
+  ],
+},
 
   
 // Invitations
