@@ -16,7 +16,8 @@ import {
   HelpCircle,
   LogOut,
   ChevronRight,
-  HandCoins
+  HandCoins,
+  BellRing
 } from "lucide-react";
 
 const Sidebar = ({ isExpanded, setIsExpanded }) => {
@@ -35,11 +36,11 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
   const canAddUser = hasPermission(permissions, 'user_add');
   
 
-  useEffect(() => {
+useEffect(() => {
   if (window.innerWidth < 768) { // Tailwind md breakpoint
     setIsExpanded(false);
   }
-}, []);
+}, [setIsExpanded]);
 
   const menuItems = [
   // Dashboard
@@ -82,6 +83,16 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
     { title: "Send Thank You Message", path: "/invitations/thank-you" }, // Add this new submenu
   ].filter(Boolean),
 }] : []),
+
+// Reminders
+{
+  title: "Reminders",
+  icon: <BellRing size={20} />,
+  children: [
+    { title: "Send Reminders", path: "/reminders/send" },
+    { title: "View Reminders", path: "/reminders/view" },
+  ],
+},
 
   // QR Check-in
   ...(canViewQRCheckIn ? [{

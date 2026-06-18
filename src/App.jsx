@@ -43,6 +43,9 @@ import ContributionsPage from './components/pages/ContributionsEvents';
 import ContributorsCardGenerator from './components/pages/ContributorsCardGenerator';
 
 import SendContributionPage from './components/pages/SendContributionsCards';
+import SendReminders from './components/pages/SendReminders';
+import ContributionEventReminders from './components/pages/ContributionEventReminders';
+import EventReminderGuestList from './components/pages/EventReminderGuestList';
 
 import './App.css';
 
@@ -169,6 +172,16 @@ useEffect(() => {
 
         {/* send contributions */}
                 <Route path="/contributions/send" element={<ProtectedRoute><SendContributionPage /></ProtectedRoute>} />
+
+        {/* send contribution reminders */}
+        <Route path="/contributions/send-reminders" element={<ProtectedRoute><SendReminders /></ProtectedRoute>} />
+        <Route path="/reminders/send" element={<ProtectedRoute><SendReminders /></ProtectedRoute>} />
+
+        {/* view contribution reminders */}
+        <Route path="/contributions/view-reminders" element={<ProtectedRoute><ContributionEventReminders /></ProtectedRoute>} />
+        <Route path="/contributions/view-reminders/:eventId/:reminderId" element={<ProtectedRoute><EventReminderGuestList /></ProtectedRoute>} />
+        <Route path="/reminders/view" element={<ProtectedRoute><ContributionEventReminders /></ProtectedRoute>} />
+        <Route path="/reminders/view/:eventId/:reminderId" element={<ProtectedRoute><EventReminderGuestList /></ProtectedRoute>} />
 
       </Routes>
     </div>
