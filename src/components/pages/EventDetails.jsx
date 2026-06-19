@@ -917,7 +917,8 @@ setTimeout(() => {
                 <div class="brand-product">Event Management Solution</div>
                 <div class="brand-contact">
                   Phone: 0626779507<br />
-                  Email: mashikuallen@gmail.com
+                  Email: mashikuallen@gmail.com<br />
+                  Location: Dar es Salaam, Tanzania
                 </div>
               </div>
             </div>
@@ -997,7 +998,7 @@ setTimeout(() => {
               <img class="footer-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
               <div>
                 <div class="footer-text">Powered by Mashiku-Tech — where technology meets celebration.</div>
-                <div class="footer-contact">Phone: 0626779507 | Email: mashikuallen@gmail.com</div>
+                <div class="footer-contact">Phone: 0626779507 | Email: mashikuallen@gmail.com | Location: Dar es Salaam, Tanzania</div>
               </div>
             </div>
             <div class="footer-note">Event guest report</div>
