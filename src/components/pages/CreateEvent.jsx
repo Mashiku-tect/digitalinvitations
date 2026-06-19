@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
-import axios from "axios";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from "../../utils/api";
@@ -280,6 +279,7 @@ const CreateEvent = () => {
       data.append("package", formData.package);
       data.append("endDate", formData.endDate);
       data.append("excelFile", formData.excelFile);
+      data.append("event_type","invitation");
 
       const res = await api.post(
         "/api/events",

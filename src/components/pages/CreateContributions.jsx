@@ -67,6 +67,7 @@ export default function CreateContributionPage() {
     const formData = new FormData();
     formData.append('eventName', eventName);
     formData.append('excelFile', selectedFile);
+    formData.append("event_type","contribution");
     
     try {
       const response = await api.post('/api/contributions/create', formData, {
