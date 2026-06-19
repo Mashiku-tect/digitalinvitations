@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../layout/Layout";
 import {
   ArrowLeft,
+  Download,
   Search,
   Phone,
   User,
@@ -43,6 +44,14 @@ const normalizeEvent = (event) => {
       : [],
   };
 };
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 export default function ContributionEventDetailsPage() {
   const ITEMS_PER_PAGE = 10;
@@ -112,6 +121,12 @@ export default function ContributionEventDetailsPage() {
     pageStartIndex,
     pageStartIndex + ITEMS_PER_PAGE
   );
+  const sentCount = contributors.filter(
+    (contributor) => contributor.status === "sent"
+  ).length;
+  const notSentCount = contributors.filter(
+    (contributor) => contributor.status === "not_sent"
+  ).length;
 
   useEffect(() => {
     setCurrentPage((prevPage) => Math.min(prevPage, totalPages));
@@ -157,6 +172,257 @@ export default function ContributionEventDetailsPage() {
       .split("_")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
+  };
+
+  const handleExportPdf = () => {
+    if (filteredContributors.length === 0) {
+      toast.error("There are no contributors to export");
+      return;
+    }
+
+    const generatedAt = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const rows = filteredContributors
+      .map(
+        (contributor, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(contributor.name)}</td>
+            <td>${escapeHtml(contributor.phone || "-")}</td>
+            <td>${escapeHtml(getStatusLabel(contributor.status))}</td>
+            <td>${escapeHtml(
+              contributor.status === "sent" && contributor.channel
+                ? getChannelLabel(contributor.channel)
+                : "-"
+            )}</td>
+            <td>${escapeHtml(
+              contributor.status === "sent"
+                ? getDeliveryStatusLabel(contributor.deliveryStatus)
+                : "-"
+            )}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const reportWindow = window.open("", "_blank", "width=1100,height=800");
+
+    if (!reportWindow) {
+      toast.error("Please allow pop-ups to export the PDF");
+      return;
+    }
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(eventName)} - Contribution Status</title>
+          <style>
+            @page { size: A4 landscape; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body {
+              color: #111827;
+              font-family: Arial, sans-serif;
+              margin: 0;
+            }
+            .header {
+              align-items: center;
+              border-bottom: 2px solid #d1d5db;
+              display: flex;
+              gap: 14px;
+              justify-content: space-between;
+              margin-bottom: 18px;
+              padding-bottom: 12px;
+            }
+            .brand {
+              align-items: center;
+              display: flex;
+              gap: 12px;
+            }
+            .brand-logo {
+              height: 48px;
+              object-fit: contain;
+              width: 48px;
+            }
+            .brand-name {
+              font-size: 18px;
+              font-weight: 700;
+              letter-spacing: 0;
+            }
+            .brand-product {
+              color: #4b5563;
+              font-size: 12px;
+              margin-top: 2px;
+            }
+            .brand-contact {
+              color: #6b7280;
+              font-size: 10px;
+              line-height: 1.5;
+              margin-top: 4px;
+            }
+            .report-title {
+              text-align: right;
+            }
+            h1 {
+              font-size: 22px;
+              margin: 0 0 6px;
+            }
+            .meta {
+              color: #4b5563;
+              font-size: 12px;
+              line-height: 1.6;
+            }
+            .summary {
+              display: grid;
+              gap: 10px;
+              grid-template-columns: repeat(3, 1fr);
+              margin-bottom: 18px;
+            }
+            .summary-card {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              padding: 10px;
+            }
+            .summary-label {
+              color: #6b7280;
+              font-size: 11px;
+              margin-bottom: 4px;
+            }
+            .summary-value {
+              font-size: 20px;
+              font-weight: 700;
+            }
+            table {
+              border-collapse: collapse;
+              font-size: 11px;
+              width: 100%;
+            }
+            th, td {
+              border: 1px solid #d1d5db;
+              padding: 7px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f3f4f6;
+              color: #374151;
+              font-size: 10px;
+              text-transform: uppercase;
+            }
+            tr:nth-child(even) td { background: #f9fafb; }
+            .footer {
+              align-items: center;
+              border-top: 1px solid #d1d5db;
+              color: #4b5563;
+              display: flex;
+              gap: 10px;
+              justify-content: space-between;
+              margin-top: 18px;
+              padding-top: 10px;
+            }
+            .footer-brand {
+              align-items: center;
+              display: flex;
+              gap: 8px;
+            }
+            .footer-logo {
+              height: 24px;
+              object-fit: contain;
+              width: 24px;
+            }
+            .footer-text {
+              font-size: 11px;
+              font-weight: 600;
+            }
+            .footer-contact {
+              color: #6b7280;
+              font-size: 10px;
+              margin-top: 2px;
+            }
+            .footer-note {
+              color: #6b7280;
+              font-size: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="brand">
+              <img class="brand-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="brand-name">MashikuTech</div>
+                <div class="brand-product">Event Management Solution</div>
+                <div class="brand-contact">
+                  Phone: 0626779507<br />
+                  Email: mashikuallen@gmail.com
+                </div>
+              </div>
+            </div>
+            <div class="report-title">
+              <h1>Contribution Status Report</h1>
+              <div class="meta">
+                <div><strong>Event:</strong> ${escapeHtml(eventName)}</div>
+                <div><strong>Generated:</strong> ${escapeHtml(generatedAt)}</div>
+                <div><strong>Records:</strong> ${filteredContributors.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-card">
+              <div class="summary-label">Total Contributors</div>
+              <div class="summary-value">${contributors.length}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Sent</div>
+              <div class="summary-value">${sentCount}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Not Sent</div>
+              <div class="summary-value">${notSentCount}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Contributor</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Channel</th>
+                <th>Delivery Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          <div class="footer">
+            <div class="footer-brand">
+              <img class="footer-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="footer-text">Powered by Mashiku-Tech — where technology meets celebration.</div>
+                <div class="footer-contact">Phone: 0626779507 | Email: mashikuallen@gmail.com</div>
+              </div>
+            </div>
+            <div class="footer-note">Contribution status report</div>
+          </div>
+
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.print();
+              }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
   };
 
   return (
@@ -227,6 +493,15 @@ export default function ContributionEventDetailsPage() {
               <option value="not_sent">Not Sent</option>
               <option value="sent">Sent</option>
             </select>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isLoading || filteredContributors.length === 0}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={16} />
+              Export PDF
+            </button>
           </div>
         </div>
 

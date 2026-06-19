@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
-import axios from 'axios';
 import { usePermissions } from '../../context/PermissionContext';
 import { hasPermission } from '../../utils/Permission';
 import { ToastContainer, toast } from 'react-toastify';
 import api from "../../utils/api";
+import { Download } from 'lucide-react';
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -17,9 +25,9 @@ const EventDetails = () => {
   
   // New states for scan permissions management
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [tenants, setTenants] = useState([]);
-  const [scanners, setScanners] = useState([]);
-  const [availableTenants, setAvailableTenants] = useState([]);
+  const [, setTenants] = useState([]);
+  const [, setScanners] = useState([]);
+  const [, setAvailableTenants] = useState([]);
   const [loadingPermissions, setLoadingPermissions] = useState(false);
   
   // Pagination state
@@ -120,7 +128,7 @@ const EventDetails = () => {
       );
       setAvailableTenants(available);
       
-    } catch (error) {
+    } catch {
       //console.error('Error fetching scan permissions:', error);
       alert('Failed to load scanner permissions');
     } finally {
@@ -129,7 +137,7 @@ const EventDetails = () => {
   };
 
   // Open permission management modal
-  const openPermissionModal = async () => {
+  const _openPermissionModal = async () => {
     setShowPermissionModal(true);
     await fetchScanPermissions();
   };
@@ -612,6 +620,402 @@ setTimeout(() => {
     }
   };
 
+  const getEventStatusLabel = () => {
+    if (event.cancelled) return "Cancelled";
+    if (isEventNotDealt) return "Not Dealt";
+    return event.active ? "Upcoming" : "Completed";
+  };
+
+  const getChannelStatusLabel = (smsSent, whatsappSent) => {
+    if (smsSent && whatsappSent) return "SMS and WhatsApp";
+    if (whatsappSent) return "WhatsApp";
+    if (smsSent) return "SMS";
+    return "Not Sent";
+  };
+
+  const getCallStatusLabel = (guest) => guest.callStatus || "Not Called";
+
+  const getPdfStatusColumns = () => {
+    const packageName = event?.packagename || "Basic";
+
+    switch (packageName) {
+      case "Basic":
+        return ["RSVP Status", "Invitation"];
+      case "Standard":
+        return ["RSVP Status", "Invitation", "Call Status"];
+      case "Pro":
+        return ["RSVP Status", "Invitation", "Reminder 1", "Call Status"];
+      case "Elite":
+        return [
+          "RSVP Status",
+          "Invitation",
+          "Reminder 1",
+          "Reminder 2",
+          "Call Status",
+        ];
+      default:
+        return ["RSVP Status", "Status"];
+    }
+  };
+
+  const getPdfStatusValues = (guest) => {
+    const packageName = event?.packagename || "Basic";
+    const invitationStatus = getChannelStatusLabel(
+      guest.invitationSmsSent || guest.smsSent,
+      guest.invitationWhatsappSent
+    );
+    const reminder1Status = getChannelStatusLabel(
+      guest.reminder1SmsSent || guest.Remainder1Sent,
+      guest.reminder1WhatsappSent
+    );
+    const reminder2Status = getChannelStatusLabel(
+      guest.reminder2SmsSent || guest.Remainder2Sent,
+      guest.reminder2WhatsappSent
+    );
+    const rsvpStatus = guest.rsvpStatus || "Pending";
+
+    switch (packageName) {
+      case "Basic":
+        return [rsvpStatus, invitationStatus];
+      case "Standard":
+        return [rsvpStatus, invitationStatus, getCallStatusLabel(guest)];
+      case "Pro":
+        return [rsvpStatus, invitationStatus, reminder1Status, getCallStatusLabel(guest)];
+      case "Elite":
+        return [
+          rsvpStatus,
+          invitationStatus,
+          reminder1Status,
+          reminder2Status,
+          getCallStatusLabel(guest),
+        ];
+      default:
+        return [rsvpStatus, rsvpStatus];
+    }
+  };
+
+  const handleExportPdf = () => {
+    if (guests.length === 0) {
+      toast.error("There are no guests to export");
+      return;
+    }
+
+    const generatedAt = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const eventDate = event.eventDate
+      ? new Date(event.eventDate).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "-";
+    const acceptedCount = guests.filter(
+      (guest) => String(guest.rsvpStatus || "").toLowerCase() === "accepted"
+    ).length;
+    const declinedCount = guests.filter(
+      (guest) => String(guest.rsvpStatus || "").toLowerCase() === "declined"
+    ).length;
+    const pendingCount = guests.filter(
+      (guest) =>
+        !guest.rsvpStatus ||
+        String(guest.rsvpStatus || "").toLowerCase() === "pending"
+    ).length;
+    const statusColumns = getPdfStatusColumns();
+    const statusHeaders = statusColumns
+      .map((column) => `<th>${escapeHtml(column)}</th>`)
+      .join("");
+    const rows = guests
+      .map((guest, index) => {
+        const statusCells = getPdfStatusValues(guest)
+          .map((value) => `<td>${escapeHtml(value || "-")}</td>`)
+          .join("");
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(guest.firstName || "N/A")}</td>
+            <td>${escapeHtml(guest.lastName || "N/A")}</td>
+            <td>${escapeHtml(guest.phone || "N/A")}</td>
+            <td>${escapeHtml(guest.guestCode || "N/A")}</td>
+            <td>${escapeHtml(guest.type || "N/A")}</td>
+            ${statusCells}
+          </tr>
+        `;
+      })
+      .join("");
+    const reportWindow = window.open("", "_blank", "width=1100,height=800");
+
+    if (!reportWindow) {
+      toast.error("Please allow pop-ups to export the PDF");
+      return;
+    }
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(event.eventName)} - Event Guest Report</title>
+          <style>
+            @page { size: A4 landscape; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body {
+              color: #111827;
+              font-family: Arial, sans-serif;
+              margin: 0;
+            }
+            .header {
+              align-items: center;
+              border-bottom: 2px solid #d1d5db;
+              display: flex;
+              gap: 14px;
+              justify-content: space-between;
+              margin-bottom: 18px;
+              padding-bottom: 12px;
+            }
+            .brand {
+              align-items: center;
+              display: flex;
+              gap: 12px;
+            }
+            .brand-logo {
+              height: 48px;
+              object-fit: contain;
+              width: 48px;
+            }
+            .brand-name {
+              font-size: 18px;
+              font-weight: 700;
+              letter-spacing: 0;
+            }
+            .brand-product {
+              color: #4b5563;
+              font-size: 12px;
+              margin-top: 2px;
+            }
+            .brand-contact {
+              color: #6b7280;
+              font-size: 10px;
+              line-height: 1.5;
+              margin-top: 4px;
+            }
+            .report-title {
+              text-align: right;
+            }
+            h1 {
+              font-size: 22px;
+              margin: 0 0 6px;
+            }
+            .meta {
+              color: #4b5563;
+              font-size: 12px;
+              line-height: 1.6;
+            }
+            .details {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              display: grid;
+              gap: 8px;
+              grid-template-columns: repeat(4, 1fr);
+              margin-bottom: 14px;
+              padding: 10px;
+            }
+            .detail-label {
+              color: #6b7280;
+              font-size: 10px;
+              margin-bottom: 3px;
+              text-transform: uppercase;
+            }
+            .detail-value {
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .summary {
+              display: grid;
+              gap: 10px;
+              grid-template-columns: repeat(4, 1fr);
+              margin-bottom: 18px;
+            }
+            .summary-card {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              padding: 10px;
+            }
+            .summary-label {
+              color: #6b7280;
+              font-size: 11px;
+              margin-bottom: 4px;
+            }
+            .summary-value {
+              font-size: 20px;
+              font-weight: 700;
+            }
+            table {
+              border-collapse: collapse;
+              font-size: 10px;
+              width: 100%;
+            }
+            th, td {
+              border: 1px solid #d1d5db;
+              padding: 6px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f3f4f6;
+              color: #374151;
+              font-size: 9px;
+              text-transform: uppercase;
+            }
+            tr:nth-child(even) td { background: #f9fafb; }
+            .footer {
+              align-items: center;
+              border-top: 1px solid #d1d5db;
+              color: #4b5563;
+              display: flex;
+              gap: 10px;
+              justify-content: space-between;
+              margin-top: 18px;
+              padding-top: 10px;
+            }
+            .footer-brand {
+              align-items: center;
+              display: flex;
+              gap: 8px;
+            }
+            .footer-logo {
+              height: 24px;
+              object-fit: contain;
+              width: 24px;
+            }
+            .footer-text {
+              font-size: 11px;
+              font-weight: 600;
+            }
+            .footer-contact {
+              color: #6b7280;
+              font-size: 10px;
+              margin-top: 2px;
+            }
+            .footer-note {
+              color: #6b7280;
+              font-size: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="brand">
+              <img class="brand-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="brand-name">MashikuTech</div>
+                <div class="brand-product">Event Management Solution</div>
+                <div class="brand-contact">
+                  Phone: 0626779507<br />
+                  Email: mashikuallen@gmail.com
+                </div>
+              </div>
+            </div>
+            <div class="report-title">
+              <h1>Event Guest Report</h1>
+              <div class="meta">
+                <div><strong>Event:</strong> ${escapeHtml(event.eventName)}</div>
+                <div><strong>Generated:</strong> ${escapeHtml(generatedAt)}</div>
+                <div><strong>Records:</strong> ${guests.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="details">
+            <div>
+              <div class="detail-label">Date</div>
+              <div class="detail-value">${escapeHtml(eventDate)}</div>
+            </div>
+            <div>
+              <div class="detail-label">Time</div>
+              <div class="detail-value">${escapeHtml(event.eventTime || "-")}</div>
+            </div>
+            <div>
+              <div class="detail-label">Location</div>
+              <div class="detail-value">${escapeHtml(event.location || "-")}</div>
+            </div>
+            <div>
+              <div class="detail-label">Package</div>
+              <div class="detail-value">${escapeHtml(event.packagename || "-")}</div>
+            </div>
+            <div>
+              <div class="detail-label">Category</div>
+              <div class="detail-value">${escapeHtml(event.category || "-")}</div>
+            </div>
+            <div>
+              <div class="detail-label">Status</div>
+              <div class="detail-value">${escapeHtml(getEventStatusLabel())}</div>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-card">
+              <div class="summary-label">Total Guests</div>
+              <div class="summary-value">${guests.length}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Accepted</div>
+              <div class="summary-value">${acceptedCount}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Declined</div>
+              <div class="summary-value">${declinedCount}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Pending</div>
+              <div class="summary-value">${pendingCount}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Phone</th>
+                <th>Guest Code</th>
+                <th>Type</th>
+                ${statusHeaders}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          <div class="footer">
+            <div class="footer-brand">
+              <img class="footer-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="footer-text">Powered by Mashiku-Tech — where technology meets celebration.</div>
+                <div class="footer-contact">Phone: 0626779507 | Email: mashikuallen@gmail.com</div>
+              </div>
+            </div>
+            <div class="footer-note">Event guest report</div>
+          </div>
+
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.print();
+              }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+  };
+
   if (loading || hasAccess === null) {
     return (
      <Layout>
@@ -676,6 +1080,16 @@ setTimeout(() => {
               }`}>
                 {event.packagename}
               </span>
+
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={guests.length === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded text-sm transition duration-300 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={16} className="mr-1" />
+                Export PDF
+              </button>
 
               {/* Not Dealt Notice */}
               {isEventNotDealt && (

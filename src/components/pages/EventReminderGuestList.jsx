@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle,
+  Download,
   MessageSquare,
   Phone,
   Search,
@@ -108,6 +109,14 @@ const formatLabel = (value) => {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 };
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -246,6 +255,258 @@ export default function EventReminderGuestList() {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
+  const handleExportPdf = () => {
+    if (filteredGuests.length === 0) {
+      toast.error("There are no guests to export");
+      return;
+    }
+
+    const generatedAt = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const rows = filteredGuests
+      .map(
+        (guest, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(guest.name)}</td>
+            <td>${escapeHtml(guest.phone || "-")}</td>
+            <td>${escapeHtml(formatLabel(guest.channel))}</td>
+            <td>${escapeHtml(formatLabel(guest.deliveryStatus || guest.status))}</td>
+            <td>${escapeHtml(formatDate(guest.sentAt))}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const reportWindow = window.open("", "_blank", "width=1100,height=800");
+
+    if (!reportWindow) {
+      toast.error("Please allow pop-ups to export the PDF");
+      return;
+    }
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(eventName)} - Reminder ${escapeHtml(
+            reminderNumber
+          )}</title>
+          <style>
+            @page { size: A4 landscape; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body {
+              color: #111827;
+              font-family: Arial, sans-serif;
+              margin: 0;
+            }
+            .header {
+              align-items: center;
+              border-bottom: 2px solid #d1d5db;
+              display: flex;
+              gap: 14px;
+              justify-content: space-between;
+              margin-bottom: 18px;
+              padding-bottom: 12px;
+            }
+            .brand {
+              align-items: center;
+              display: flex;
+              gap: 12px;
+            }
+            .brand-logo {
+              height: 48px;
+              object-fit: contain;
+              width: 48px;
+            }
+            .brand-name {
+              font-size: 18px;
+              font-weight: 700;
+              letter-spacing: 0;
+            }
+            .brand-product {
+              color: #4b5563;
+              font-size: 12px;
+              margin-top: 2px;
+            }
+            .brand-contact {
+              color: #6b7280;
+              font-size: 10px;
+              line-height: 1.5;
+              margin-top: 4px;
+            }
+            .report-title {
+              text-align: right;
+            }
+            h1 {
+              font-size: 22px;
+              margin: 0 0 6px;
+            }
+            .meta {
+              color: #4b5563;
+              font-size: 12px;
+              line-height: 1.6;
+            }
+            .summary {
+              display: grid;
+              gap: 10px;
+              grid-template-columns: repeat(4, 1fr);
+              margin-bottom: 18px;
+            }
+            .summary-card {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              padding: 10px;
+            }
+            .summary-label {
+              color: #6b7280;
+              font-size: 11px;
+              margin-bottom: 4px;
+            }
+            .summary-value {
+              font-size: 20px;
+              font-weight: 700;
+            }
+            table {
+              border-collapse: collapse;
+              font-size: 11px;
+              width: 100%;
+            }
+            th, td {
+              border: 1px solid #d1d5db;
+              padding: 7px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f3f4f6;
+              color: #374151;
+              font-size: 10px;
+              text-transform: uppercase;
+            }
+            tr:nth-child(even) td { background: #f9fafb; }
+            .footer {
+              align-items: center;
+              border-top: 1px solid #d1d5db;
+              color: #4b5563;
+              display: flex;
+              gap: 10px;
+              justify-content: space-between;
+              margin-top: 18px;
+              padding-top: 10px;
+            }
+            .footer-brand {
+              align-items: center;
+              display: flex;
+              gap: 8px;
+            }
+            .footer-logo {
+              height: 24px;
+              object-fit: contain;
+              width: 24px;
+            }
+            .footer-text {
+              font-size: 11px;
+              font-weight: 600;
+            }
+            .footer-contact {
+              color: #6b7280;
+              font-size: 10px;
+              margin-top: 2px;
+            }
+            .footer-note {
+              color: #6b7280;
+              font-size: 10px;
+            }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="brand">
+              <img class="brand-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="brand-name">MashikuTech</div>
+                <div class="brand-product">Event Management Solution</div>
+                <div class="brand-contact">
+                  Phone: 0626779507<br />
+                  Email: mashikuallen@gmail.com
+                </div>
+              </div>
+            </div>
+            <div class="report-title">
+              <h1>Reminder ${escapeHtml(reminderNumber)} Guest Status</h1>
+              <div class="meta">
+                <div><strong>Event:</strong> ${escapeHtml(eventName)}</div>
+                <div><strong>Generated:</strong> ${escapeHtml(generatedAt)}</div>
+                <div><strong>Records:</strong> ${filteredGuests.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-card">
+              <div class="summary-label">Total Guests</div>
+              <div class="summary-value">${summary.totalGuests}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Received</div>
+              <div class="summary-value">${receivedCount}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Not Received</div>
+              <div class="summary-value">${notReceivedCount}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Pending</div>
+              <div class="summary-value">${pendingCount}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Guest</th>
+                <th>Phone</th>
+                <th>Channel</th>
+                <th>Delivery Status</th>
+                <th>Sent At</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          <div class="footer">
+            <div class="footer-brand">
+              <img class="footer-logo" src="/mashikutechlogo.png" alt="MashikuTech logo" />
+              <div>
+                <div class="footer-text">Powered by Mashiku-Tech — where technology meets celebration.</div>
+                <div class="footer-contact">Phone: 0626779507 | Email: mashikuallen@gmail.com</div>
+              </div>
+            </div>
+            <div class="footer-note">Reminder guest status report</div>
+          </div>
+
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.print();
+              }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50">
@@ -368,6 +629,15 @@ export default function EventReminderGuestList() {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isLoading || filteredGuests.length === 0}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={16} />
+              Export PDF
+            </button>
           </div>
         </div>
 
