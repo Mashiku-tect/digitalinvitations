@@ -4,10 +4,10 @@ const SERVER_URL='https://ecards.mashikutech.co.tz/digitalinvitations';
 
 //const SERVER_URL='http://192.168.1.242:5002';
 
-
+//increase timeout to handle sending of invitations messages which can take a while depending on the number of invitations being sent
 const api = axios.create({
   baseURL: SERVER_URL,
-  timeout: 10000, // 10 seconds
+  timeout: 180000, // 3 minutes
 });
 
 // Attach token to every request
